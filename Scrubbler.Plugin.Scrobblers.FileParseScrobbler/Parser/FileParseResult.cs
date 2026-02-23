@@ -1,7 +1,7 @@
 using System.Globalization;
 using Scrubbler.Abstractions;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 
 internal sealed class FileParseResult(IEnumerable<ScrobbleData> scrobbles, IEnumerable<string> errors)
 {

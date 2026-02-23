@@ -1,0 +1,73 @@
+﻿<ContentDialog
+    x:Class="Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON.JsonFileParserConfigurationEditView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON"
+    Title="JSON Parser Configuration"
+    PrimaryButtonText="OK"
+    SecondaryButtonText="Cancel"
+    DefaultButton="Primary"
+    Style="{ThemeResource DefaultContentDialogStyle}">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" Padding="0,8">
+
+            <!-- Required Fields -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Required Fields" FontWeight="SemiBold"/>
+
+                <TextBox
+                    Header="Timestamp field name"
+                    Text="{Binding TimestampFieldName, Mode=TwoWay}"
+                    PlaceholderText="e.g. ts" />
+
+                <TextBox
+                    Header="Track field name"
+                    Text="{Binding TrackFieldName, Mode=TwoWay}"
+                    PlaceholderText="e.g. master_metadata_track_name" />
+
+                <TextBox
+                    Header="Artist field name"
+                    Text="{Binding ArtistFieldName, Mode=TwoWay}"
+                    PlaceholderText="e.g. master_metadata_album_artist_name" />
+            </StackPanel>
+
+            <!-- Optional Fields -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Optional Fields" FontWeight="SemiBold"/>
+
+                <TextBox
+                    Header="Album field name"
+                    Text="{Binding AlbumFieldName, Mode=TwoWay}"
+                    PlaceholderText="leave empty to disable" />
+
+                <TextBox
+                    Header="Album artist field name"
+                    Text="{Binding AlbumArtistFieldName, Mode=TwoWay}"
+                    PlaceholderText="leave empty to disable" />
+
+                <TextBox
+                    Header="Milliseconds played field name"
+                    Text="{Binding MillisecondsPlayedFieldName, Mode=TwoWay}"
+                    PlaceholderText="leave empty to disable" />
+            </StackPanel>
+
+            <!-- Filters -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Filters" FontWeight="SemiBold"/>
+
+                <CheckBox
+                    Content="Filter short played songs"
+                    IsChecked="{Binding FilterShortPlayedSongs, Mode=TwoWay}" />
+
+                <NumberBox
+                    Header="Minimum play duration (ms)"
+                    Value="{Binding MillisecondsPlayedThreshold, Mode=TwoWay}"
+                    SpinButtonPlacementMode="Inline"
+                    Minimum="0"
+                    IsEnabled="{Binding FilterShortPlayedSongs}" />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

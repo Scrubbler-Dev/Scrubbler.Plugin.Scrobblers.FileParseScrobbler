@@ -1,4 +1,6 @@
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser;
+using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 
 internal interface IFileParser<T> where T : IFileParserConfiguration
 {

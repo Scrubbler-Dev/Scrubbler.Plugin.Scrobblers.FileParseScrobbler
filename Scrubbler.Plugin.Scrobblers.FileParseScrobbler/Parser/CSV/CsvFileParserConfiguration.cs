@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 /// <summary>
 /// Immutable configuration snapshot for CSV scrobble parsing.

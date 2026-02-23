@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Scrubbler.Plugin.Scrobblers.FileParseScrobbler": {
+      "commandName": "Project"
+    },
+    "Scrubbler": {
+      "commandName": "Executable",
+      "executablePath": "E:\\Source\\Github\\Scrubbler-2\\Scrubbler\\Scrubbler.Host\\bin\\Debug\\net10.0-desktop\\Scrubbler.Host.exe",
+      "environmentVariables": {
+        "SCRUBBLER_PLUGIN_MODE": "Debug"
+      }
+    }
+  }
+}

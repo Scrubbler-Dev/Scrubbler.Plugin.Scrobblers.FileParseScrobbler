@@ -4,8 +4,11 @@ using CommunityToolkit.Mvvm.Input;
 using Scrubbler.Abstractions;
 using Scrubbler.Abstractions.Plugin;
 using Scrubbler.Abstractions.Services;
-using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 
@@ -47,7 +50,8 @@ internal sealed partial class FileParseScrobbleViewModel : ScrobbleMultipleTimeV
     #region Construction
 
     public FileParseScrobbleViewModel(ILogService logService, IDialogService dialogService, IFilePickerService filePicker, IFileStorageService fileStorageService,
-                                      IFileParser<CsvFileParserConfiguration> csvParser, CsvFileParserConfiguration csvConfig)
+                                      IFileParser<CsvFileParserConfiguration> csvParser, CsvFileParserConfiguration csvConfig,
+                                      IFileParser<JsonFileParserConfiguration> jsonParser, JsonFileParserConfiguration jsonConfig)
     {
         _logService = logService;
         _dialogService = dialogService;
@@ -56,7 +60,8 @@ internal sealed partial class FileParseScrobbleViewModel : ScrobbleMultipleTimeV
 
         var parsers = new List<IFileParserViewModel>
         {
-            new CsvFileParserViewModel(dialogService, csvParser, csvConfig)
+            new CsvFileParserViewModel(dialogService, csvParser, csvConfig),
+            new JsonFileParserViewModel(dialogService, jsonParser, jsonConfig)
         };
 
         AvailableParsers = parsers;

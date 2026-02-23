@@ -1,9 +1,12 @@
 using Scrubbler.Abstractions.Plugin;
 using Scrubbler.Abstractions.Services;
 using Scrubbler.Abstractions.Settings;
+using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 
 [PluginMetadata(
     Name = "File Parse Scrobbler",
@@ -40,8 +43,8 @@ public sealed class FileParseScrobblePlugin : Abstractions.Plugin.PluginBase, IS
     public override IPluginViewModel GetViewModel()
     {
         _vm ??= new FileParseScrobbleViewModel(_logService, _dialogService, _filePickerService, _fileStorageService,
-                                                new CsvFileParser(),
-                                                _settings.CsvConfig);
+                                                new CsvFileParser(), _settings.CsvConfig,
+                                                new JsonFileParser(), _settings.JsonConfig);
 
         return _vm;
     }
@@ -59,6 +62,9 @@ public sealed class FileParseScrobblePlugin : Abstractions.Plugin.PluginBase, IS
         var csvParser = _vm?.AvailableParsers.OfType<CsvFileParserViewModel>().FirstOrDefault();
         if (csvParser is not null)
             _settings.CsvConfig = csvParser.Config;
+        var jsonParser = _vm?.AvailableParsers.OfType<JsonFileParserViewModel>().FirstOrDefault();
+        if (jsonParser is not null)
+            _settings.JsonConfig = jsonParser.Config;
 
         await _settingsStore.SetAsync(Name, _settings);
     }

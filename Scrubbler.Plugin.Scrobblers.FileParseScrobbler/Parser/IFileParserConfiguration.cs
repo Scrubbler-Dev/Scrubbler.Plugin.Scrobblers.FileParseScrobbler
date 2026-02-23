@@ -1,5 +1,6 @@
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 
 internal interface IFileParserConfiguration
 {
+	void Validate();
 }

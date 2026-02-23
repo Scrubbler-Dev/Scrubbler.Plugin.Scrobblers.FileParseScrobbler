@@ -1,4 +1,4 @@
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 internal sealed record CsvScrobbleRow
 {

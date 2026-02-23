@@ -1,7 +1,7 @@
 using System.Text;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
-using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser;
-using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 namespace Scrubbler.Test.FileParseScrobblerTest.Parser.CSV;
 

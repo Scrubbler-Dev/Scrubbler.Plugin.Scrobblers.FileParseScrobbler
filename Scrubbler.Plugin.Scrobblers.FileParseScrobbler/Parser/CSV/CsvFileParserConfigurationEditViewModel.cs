@@ -1,5 +1,6 @@
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
 

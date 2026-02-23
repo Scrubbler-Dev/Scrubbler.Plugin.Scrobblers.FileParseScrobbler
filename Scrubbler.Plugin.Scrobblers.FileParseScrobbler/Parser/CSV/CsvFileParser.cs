@@ -2,8 +2,9 @@ using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Scrubbler.Abstractions;
+using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 internal sealed class CsvFileParser : IFileParser<CsvFileParserConfiguration>
 {

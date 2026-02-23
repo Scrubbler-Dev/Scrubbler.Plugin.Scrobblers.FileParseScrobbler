@@ -1,6 +1,6 @@
 using Scrubbler.Abstractions;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 
 internal partial class ParsedScrobbleViewModel(ScrobbleData scrobble) : ScrobbableObjectViewModel(scrobble.Artist, scrobble.Track, scrobble.Album, scrobble.AlbumArtist)
 {

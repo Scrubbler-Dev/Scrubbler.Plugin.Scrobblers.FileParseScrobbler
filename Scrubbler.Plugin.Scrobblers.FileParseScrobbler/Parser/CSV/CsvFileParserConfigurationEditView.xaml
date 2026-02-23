@@ -1,8 +1,8 @@
 ﻿<ContentDialog
-    x:Class="Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV.CsvFileParserConfigurationEditView"
+    x:Class="Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV.CsvFileParserConfigurationEditView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV"
+    xmlns:local="using:Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV"
     Title="CSV Parser Configuration"
     PrimaryButtonText="OK"
     SecondaryButtonText="Cancel"

@@ -1,6 +1,6 @@
 using CsvHelper.Configuration;
 
-namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 internal sealed class CsvScrobbleRowMap : ClassMap<CsvScrobbleRow>
 {

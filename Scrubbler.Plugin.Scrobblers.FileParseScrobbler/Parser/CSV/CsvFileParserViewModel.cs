@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Scrubbler.Abstractions.Services;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
+using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
 
@@ -12,7 +14,7 @@ internal sealed partial class CsvFileParserViewModel(IDialogService dialogServic
 
     public CsvFileParserConfiguration Config { get; private set; } = initialConfig;
 
-    public IReadOnlyList<string> SupportedExtensions => [".csv"];
+    public IReadOnlyList<string> SupportedExtensions { get; } = [".csv"];
 
     private readonly IDialogService _dialogService = dialogService;
     private readonly IFileParser<CsvFileParserConfiguration> _parser = parser;
