@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Scrubbler.Abstractions.Services;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
+using Scrubbler.PluginBase.Services;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
 

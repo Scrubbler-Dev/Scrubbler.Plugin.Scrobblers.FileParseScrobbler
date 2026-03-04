@@ -1,8 +1,8 @@
 using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
-using Scrubbler.Abstractions;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+using Scrubbler.PluginBase;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 

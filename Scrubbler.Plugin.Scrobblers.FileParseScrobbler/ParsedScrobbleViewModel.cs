@@ -1,4 +1,5 @@
 using Scrubbler.Abstractions;
+using Scrubbler.PluginBase;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 

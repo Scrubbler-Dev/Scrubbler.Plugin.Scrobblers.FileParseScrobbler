@@ -1,5 +1,5 @@
+using Scrubbler.PluginBase;
 using System.Globalization;
-using Scrubbler.Abstractions;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 
