@@ -5,7 +5,7 @@
     xmlns:local="using:Scrubbler.Plugin.Scrobbler.FileParseScrobbler"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:controls="clr-namespace:Scrubbler.Abstractions.Controls;assembly=Scrubbler.Abstractions"
+    xmlns:controls="clr-namespace:Scrubbler.PluginBase.Controls;assembly=Scrubbler.PluginBase"
     xmlns:tv="using:WinUI.TableView"
     d:DataContext="{d:DesignInstance Type=local:FileParseScrobbleViewModel}"
     mc:Ignorable="d"

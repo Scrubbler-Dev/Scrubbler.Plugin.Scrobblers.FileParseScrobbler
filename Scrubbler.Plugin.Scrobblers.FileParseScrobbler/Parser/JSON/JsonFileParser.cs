@@ -1,5 +1,5 @@
-﻿using Scrubbler.Abstractions;
-using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+﻿using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+using Scrubbler.PluginBase;
 using System.Globalization;
 using System.Text.Json;
 

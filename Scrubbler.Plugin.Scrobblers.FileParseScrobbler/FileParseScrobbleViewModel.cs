@@ -1,14 +1,14 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Scrubbler.Abstractions;
-using Scrubbler.Abstractions.Plugin;
-using Scrubbler.Abstractions.Services;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON;
+using Scrubbler.PluginBase;
+using Scrubbler.PluginBase.Plugin;
+using Scrubbler.PluginBase.Services;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 

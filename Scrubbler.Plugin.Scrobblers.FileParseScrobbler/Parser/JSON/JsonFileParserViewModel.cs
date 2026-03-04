@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Scrubbler.Abstractions.Services;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+using Scrubbler.PluginBase.Services;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON
 {
