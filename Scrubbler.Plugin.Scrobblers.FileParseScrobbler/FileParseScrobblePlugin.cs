@@ -1,10 +1,10 @@
-using Scrubbler.Abstractions.Plugin;
-using Scrubbler.Abstractions.Services;
-using Scrubbler.Abstractions.Settings;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler.Parser.CSV;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON;
+using Scrubbler.PluginBase.Plugin;
+using Scrubbler.PluginBase.Services;
+using Scrubbler.PluginBase.Settings;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 
@@ -12,7 +12,7 @@ namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
     Name = "File Parse Scrobbler",
     Description = "Parses scrobbles from local files",
     SupportedPlatforms = PlatformSupport.All)]
-public sealed class FileParseScrobblePlugin : Abstractions.Plugin.PluginBase, IScrobblePlugin, IPersistentPlugin
+public sealed class FileParseScrobblePlugin : PluginBase.Plugin.PluginBase, IScrobblePlugin, IPersistentPlugin
 {
     #region Properties
 

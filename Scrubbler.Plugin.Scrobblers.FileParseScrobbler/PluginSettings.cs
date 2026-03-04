@@ -1,6 +1,6 @@
-using Scrubbler.Abstractions.Settings;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 using Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON;
+using Scrubbler.PluginBase.Settings;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler;
 
