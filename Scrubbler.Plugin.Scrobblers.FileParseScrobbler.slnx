@@ -7,4 +7,6 @@
   </Folder>
   <Project Path="Scrubbler.Plugin.Scrobblers.FileParseScrobbler/Scrubbler.Plugin.Scrobblers.FileParseScrobbler.csproj" />
   <Project Path="Scrubbler.Test.FileParseScrobblerTest/Scrubbler.Test.FileParseScrobblerTest.csproj" />
+  <Project Path="Scrubbler.Import/Scrubbler.Import.csproj" />
+  <Project Path="Scrubbler.Cli/Scrubbler.Cli.csproj" />
 </Solution>

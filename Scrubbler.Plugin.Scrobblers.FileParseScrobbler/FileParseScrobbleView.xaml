@@ -1,4 +1,4 @@
-﻿<UserControl
+<UserControl
     x:Class="Scrubbler.Plugin.Scrobbler.FileParseScrobbler.FileParseScrobbleView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -12,103 +12,243 @@
     d:DesignHeight="300"
     d:DesignWidth="400">
 
-    <Grid>
+    <UserControl.Resources>
+        <Style x:Key="ImportCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="ImportSectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="ImportSecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+        <Style x:Key="ImportCard" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="5"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="5"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="5"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="12,4,12,0">
+            <Grid>
+                <Button Content="Manual scrobbling" Command="{Binding ShowManualTabCommand}"
+                        Background="Transparent" BorderThickness="0" FontSize="20" FontWeight="Normal"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" Padding="0,8,0,12"/>
+                <Border Height="2" VerticalAlignment="Bottom" Background="{ThemeResource SystemControlHighlightAccentBrush}"
+                        Visibility="{Binding ManualTabVisibility}" IsHitTestVisible="False"/>
+            </Grid>
+            <Grid>
+                <Button Content="Scheduled imports" Command="{Binding ShowImportsTabCommand}"
+                        Background="Transparent" BorderThickness="0" FontSize="20" FontWeight="Normal"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" Padding="0,8,0,12"/>
+                <Border Height="2" VerticalAlignment="Bottom" Background="{ThemeResource SystemControlHighlightAccentBrush}"
+                        Visibility="{Binding ImportsTabVisibility}" IsHitTestVisible="False"/>
+            </Grid>
+        </StackPanel>
+            <Grid Grid.Row="1" Visibility="{Binding ManualTabVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="3"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="3"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-            <TextBox Grid.Column="0" Header="File to parse" Text="{Binding SelectedFilePath, Mode=TwoWay}"/>
-            <Button Grid.Column="2" Content=" ... " Command="{Binding OpenFileCommand}"/>
+                    <TextBox Grid.Column="0" Header="File to parse" Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Grid.Column="2" Content=" ... " Command="{Binding OpenFileCommand}"/>
 
-            <ComboBox Grid.Column="4" Header="File Type" ItemsSource="{Binding AvailableParsers}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedParser, Mode=TwoWay}"/>
-            <Button Grid.Column="6" Content="Parse" Command="{Binding ParseCommand}"/>
-            <Button Grid.Column="8" Content="Settings" Command="{Binding SelectedParser.OpenSettingsCommand}"/>
+                    <ComboBox Grid.Column="4" Header="File Type" ItemsSource="{Binding AvailableParsers}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedParser, Mode=TwoWay}"/>
+                    <Button Grid.Column="6" Content="Parse" Command="{Binding ParseCommand}"/>
+                    <Button Grid.Column="8" Content="Settings" Command="{Binding SelectedParser.OpenSettingsCommand}"/>
 
-            <StackPanel Grid.Row="2" Grid.ColumnSpan="9" Orientation="Horizontal" Spacing="5">
-                <TextBlock Text="Scrobble Mode:" VerticalAlignment="Center"/>
-                <ComboBox Header="Scrobble Mode" HorizontalAlignment="Right" ItemsSource="{Binding AvailableScrobbleModes}" SelectedItem="{Binding SelectedScrobbleMode, Mode=TwoWay}"/> "
-            </StackPanel>
-        </Grid>
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="9" Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="Scrobble Mode:" VerticalAlignment="Center"/>
+                        <ComboBox Header="Scrobble Mode" HorizontalAlignment="Right" ItemsSource="{Binding AvailableScrobbleModes}" SelectedItem="{Binding SelectedScrobbleMode, Mode=TwoWay}"/>
+                    </StackPanel>
+                </Grid>
 
-        <controls:ScrobbleMultipleSelectorControl Grid.Row="2" VerticalAlignment="Stretch"/>
+                <controls:ScrobbleMultipleSelectorControl Grid.Row="2" VerticalAlignment="Stretch"/>
 
-        <controls:ScrobbableObjectTableView Grid.Row="4"
-            ItemsSource="{Binding Scrobbles}"
-            AutoGenerateColumns="False"
-            SelectionMode="Extended"
-            CanSortColumns="True"
-            Margin="8"
-            RowHeight="40"
-            HeaderRowHeight="32" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <controls:ScrobbableObjectTableView Grid.Row="4"
+                    ItemsSource="{Binding Scrobbles}"
+                    AutoGenerateColumns="False"
+                    SelectionMode="Extended"
+                    CanSortColumns="True"
+                    Margin="8"
+                    RowHeight="40"
+                    HeaderRowHeight="32" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 
-            <controls:ScrobbableObjectTableView.Columns>
-                <tv:TableViewTemplateColumn Header="Scrobble">
-                    <tv:TableViewTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <CheckBox IsChecked="{Binding ToScrobble, Mode=TwoWay}"
-                                      IsEnabled="{Binding CanBeScrobbled}" />
-                        </DataTemplate>
-                    </tv:TableViewTemplateColumn.CellTemplate>
-                </tv:TableViewTemplateColumn>
+                    <controls:ScrobbableObjectTableView.Columns>
+                        <tv:TableViewTemplateColumn Header="Scrobble">
+                            <tv:TableViewTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding ToScrobble, Mode=TwoWay}"
+                                              IsEnabled="{Binding CanBeScrobbled}" />
+                                </DataTemplate>
+                            </tv:TableViewTemplateColumn.CellTemplate>
+                        </tv:TableViewTemplateColumn>
 
-                <tv:TableViewTextColumn
-                    Header="Track"
-                    Binding="{Binding TrackName}"
-                    CanSort="True"
-                    Width="*"/>
+                        <tv:TableViewTextColumn
+                            Header="Track"
+                            Binding="{Binding TrackName}"
+                            CanSort="True"
+                            Width="*"/>
 
-                <tv:TableViewTextColumn
-                    Header="Artist"
-                    Binding="{Binding ArtistName}"
-                    CanSort="True"
-                    Width="*"/>
+                        <tv:TableViewTextColumn
+                            Header="Artist"
+                            Binding="{Binding ArtistName}"
+                            CanSort="True"
+                            Width="*"/>
 
-                <tv:TableViewTextColumn
-                    Header="Album"
-                    Binding="{Binding AlbumName}"
-                    CanSort="True"
-                    Width="*"/>
+                        <tv:TableViewTextColumn
+                            Header="Album"
+                            Binding="{Binding AlbumName}"
+                            CanSort="True"
+                            Width="*"/>
 
-                <tv:TableViewTextColumn
-                    Header="Album Artist"
-                    Binding="{Binding AlbumArtistName}"
-                    CanSort="True"
-                    Width="*"/>
+                        <tv:TableViewTextColumn
+                            Header="Album Artist"
+                            Binding="{Binding AlbumArtistName}"
+                            CanSort="True"
+                            Width="*"/>
 
-                <tv:TableViewTextColumn
-                    Header="Played At"
-                    Binding="{Binding Timestamp}"
-                    CanSort="True"
-                    Width="*"
-                    IsReadOnly="True"/>
+                        <tv:TableViewTextColumn
+                            Header="Played At"
+                            Binding="{Binding Timestamp}"
+                            CanSort="True"
+                            Width="*"
+                            IsReadOnly="True"/>
 
-            </controls:ScrobbableObjectTableView.Columns>
-        </controls:ScrobbableObjectTableView>
+                    </controls:ScrobbableObjectTableView.Columns>
+                </controls:ScrobbableObjectTableView>
 
-        <controls:ScrobbleTimeControl Grid.Row="6" DataContext="{Binding ScrobbleTimeVM}"/>
+                <controls:ScrobbleTimeControl Grid.Row="6" DataContext="{Binding ScrobbleTimeVM}"/>
+            </Grid>
+            <ScrollViewer Grid.Row="1" Visibility="{Binding ImportsTabVisibility}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16" Padding="12,16,12,24" MaxWidth="800" HorizontalAlignment="Stretch">
+                    <Border Style="{StaticResource ImportCard}">
+                        <StackPanel Spacing="14">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="History file" Style="{StaticResource ImportSectionTitle}"/>
+                            </StackPanel>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding SelectedFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Choose your exported listening history" AutomationProperties.Name="History file" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Browse" Command="{Binding OpenImportFileCommand}" Style="{StaticResource ImportSecondaryButton}" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Expander Header="File options" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="12" Padding="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <ComboBox ItemsSource="{Binding AvailableParsers}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedParser, Mode=TwoWay}" AutomationProperties.Name="File format" MinWidth="110"/>
+                                        <Button Content="Parser settings" Command="{Binding SelectedParser.OpenSettingsCommand}" Style="{StaticResource ImportSecondaryButton}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding ImportAllowParseErrors, Mode=TwoWay}">
+                                        <TextBlock Text="Skip unreadable rows and save an error report" FontWeight="Normal" TextWrapping="Wrap"/>
+                                    </CheckBox>
+                                    <TextBlock Text="Use Manual scrobbling to preview tracks. File settings are shared between tabs." Style="{StaticResource ImportCaption}"/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource ImportCard}">
+                        <StackPanel Spacing="14">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE787;" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="Import schedule" Style="{StaticResource ImportSectionTitle}"/>
+                            </StackPanel>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Tracks per run" FontSize="13" FontWeight="Normal"/>
+                                    <TextBox Text="{Binding ImportAmount, Mode=TwoWay}" AutomationProperties.Name="Tracks per run"/>
+                                    <TextBlock Text="1–500 tracks" Style="{StaticResource ImportCaption}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="6">
+                                    <TextBlock Text="Repeat every" FontSize="13" FontWeight="Normal"/>
+                                    <TextBox Text="{Binding ImportIntervalHours, Mode=TwoWay}" AutomationProperties.Name="Hours between imports"/>
+                                    <TextBlock Text="Hours · minimum 24" Style="{StaticResource ImportCaption}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="Tracks get new Last.fm dates." Style="{StaticResource ImportCaption}"/>
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding ImportAccount}" Style="{StaticResource ImportCaption}" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="Start import" Command="{Binding QueueImportCommand}" Padding="24,10" CornerRadius="8"/>
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="{Binding ImportStatus}" Style="{StaticResource ImportCaption}" Visibility="{Binding ImportStatusVisibility}"/>
+                            <TextBlock Text="{Binding ImportCreationHint}" Style="{StaticResource ImportCaption}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource ImportCard}">
+                        <StackPanel Spacing="12">
+                            <Grid>
+                                <TextBlock Text="Your import" Style="{StaticResource ImportSectionTitle}" VerticalAlignment="Center"/>
+                                <Button Command="{Binding RefreshImportsCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}" HorizontalAlignment="Right" ToolTipService.ToolTip="Refresh progress" AutomationProperties.Name="Refresh progress">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="{Binding ImportTaskSummary}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ImportProgressText}" Style="{StaticResource ImportCaption}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Pause" Command="{Binding PauseImportCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}"/>
+                                <Button Content="Resume" Command="{Binding ResumeImportCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}"/>
+                                <Button Content="Delete" Command="{Binding DeleteImportCommand}" Style="{StaticResource ImportSecondaryButton}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
     </Grid>
 </UserControl>

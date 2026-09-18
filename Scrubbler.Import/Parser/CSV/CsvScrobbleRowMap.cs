@@ -2,7 +2,7 @@ using CsvHelper.Configuration;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
-internal sealed class CsvScrobbleRowMap : ClassMap<CsvScrobbleRow>
+public sealed class CsvScrobbleRowMap : ClassMap<CsvScrobbleRow>
 {
     public CsvScrobbleRowMap(CsvFileParserConfiguration config)
     {

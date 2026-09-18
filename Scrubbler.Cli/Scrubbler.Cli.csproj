@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
+    <AssemblyTitle>Scrubbler imports</AssemblyTitle>
+    <OutputType>Exe</OutputType>
+    <!-- A Windows GUI-subsystem apphost prevents Task Scheduler allocating a
+         console. Terminal invocations attach to the existing parent console. -->
+    <OutputType Condition="'$(OS)' == 'Windows_NT' or $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">WinExe</OutputType>
+    <AssemblyName>scrubbler-cli</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" />
+    <!-- Override the toolkit's old transitive drawing dependency. -->
+    <PackageReference Include="System.Drawing.Common" />
+    <ProjectReference Include="..\Scrubbler.Import\Scrubbler.Import.csproj" />
+  </ItemGroup>
+</Project>

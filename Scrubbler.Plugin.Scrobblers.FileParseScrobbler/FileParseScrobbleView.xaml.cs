@@ -7,5 +7,9 @@ public sealed partial class FileParseScrobbleView : UserControl
     public FileParseScrobbleView()
     {
         this.InitializeComponent();
+        Loaded += async (_, _) =>
+        {
+            if (DataContext is FileParseScrobbleViewModel vm) await vm.RefreshImportsCommand.ExecuteAsync(null);
+        };
     }
 }

@@ -1,6 +1,6 @@
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
-internal sealed record CsvScrobbleRow
+public sealed record CsvScrobbleRow
 {
     public string? Timestamp { get; init; }
     public string Artist { get; init; } = string.Empty;

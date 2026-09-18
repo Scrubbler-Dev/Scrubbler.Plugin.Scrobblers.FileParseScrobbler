@@ -2,22 +2,23 @@ using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
-using Scrubbler.PluginBase;
+using ScrobbleData = Scrubbler.Import.ImportTrack;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 
-internal sealed class CsvFileParser : IFileParser<CsvFileParserConfiguration>
+public sealed class CsvFileParser : IFileParser<CsvFileParserConfiguration>
 {
     public FileParseResult Parse(string file, CsvFileParserConfiguration config, ScrobbleMode mode)
     {
         ArgumentException.ThrowIfNullOrEmpty(file);
+        config.Validate();
 
         var scrobbles = new List<ScrobbleData>();
         var errors = new List<string>();
 
         var csvConfig = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            HasHeaderRecord = false,
+            HasHeaderRecord = config.HasHeaderRecord,
             Delimiter = config.Delimiter,
             Encoding = config.Encoding,
             BadDataFound = null,
@@ -47,14 +48,18 @@ internal sealed class CsvFileParser : IFileParser<CsvFileParserConfiguration>
                 }
 
                 // Short-play filter
-                if (config.FilterShortPlayedSongs && TimeSpan.TryParse(row.MillisecondsPlayed, out var played) && played.TotalMilliseconds <= config.MillisecondsPlayedThreshold)
+                var playedMilliseconds = double.TryParse(row.MillisecondsPlayed, NumberStyles.Number, CultureInfo.InvariantCulture, out var milliseconds)
+                    ? milliseconds : TimeSpan.TryParse(row.MillisecondsPlayed, out var played) ? played.TotalMilliseconds : double.NaN;
+                if (config.FilterShortPlayedSongs && playedMilliseconds <= config.MillisecondsPlayedThreshold)
                     continue;
 
                 scrobbles.Add(
                     new ScrobbleData(row.Track, row.Artist, playedAt.AddSeconds(1))
                     {
                         Album = row.Album,
-                        AlbumArtist = row.AlbumArtist
+                        AlbumArtist = row.AlbumArtist,
+                        SourceIndex = rowIndex - 1,
+                        OriginalTimestamp = DateTimeOffset.TryParse(row.Timestamp, out var original) ? original : null
                     }
                 );
             }

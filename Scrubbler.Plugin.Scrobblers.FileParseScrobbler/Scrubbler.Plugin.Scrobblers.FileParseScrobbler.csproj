@@ -15,6 +15,7 @@
     <FileVersion>1.1.1</FileVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Scrubbler.Import\Scrubbler.Import.csproj" />
     <PackageReference Include="CsvHelper" />
     <PackageReference Include="Scrubbler.PluginBase" />
   </ItemGroup>
@@ -49,4 +50,29 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
+  <!-- SQLite native assets must accompany the managed plugin in local debug installs. -->
+  <!-- The assembly was renamed from Scrobbler to Scrobblers. Incremental builds
+       otherwise keep copying the incompatible old assembly into plugin discovery. -->
+  <Target Name="RemoveLegacyFileParseAssembly" BeforeTargets="CopyToDebugPlugins;AfterBuild" Condition="'$(TargetFramework)' != ''">
+    <PropertyGroup>
+      <LegacyFileParseDebugDir>$(MSBuildProjectDirectory)\..\..\Scrubbler-2\Scrubbler\DebugPlugins\$(MSBuildProjectName)</LegacyFileParseDebugDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <LegacyFileParseOutput Include="$(TargetDir)Scrubbler.Plugin.Scrobbler.FileParseScrobbler.dll;$(TargetDir)Scrubbler.Plugin.Scrobbler.FileParseScrobbler.pdb;$(TargetDir)Scrubbler.Plugin.Scrobbler.FileParseScrobbler.deps.json" />
+      <LegacyFileParseOutput Include="$(LegacyFileParseDebugDir)\Scrubbler.Plugin.Scrobbler.FileParseScrobbler.dll;$(LegacyFileParseDebugDir)\Scrubbler.Plugin.Scrobbler.FileParseScrobbler.pdb;$(LegacyFileParseDebugDir)\Scrubbler.Plugin.Scrobbler.FileParseScrobbler.deps.json" Condition="'$(Configuration)' == 'Debug'" />
+    </ItemGroup>
+    <Delete Files="@(LegacyFileParseOutput)" />
+  </Target>
+  <!-- Bundled in the plugin zip, so end users never install or locate a CLI. -->
+  <Target Name="BundleImportRunner" BeforeTargets="CopyToDebugPlugins;AfterBuild" Condition="'$(TargetFramework)' != '' and '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../Scrubbler.Cli/Scrubbler.Cli.csproj&quot; -c $(Configuration) -r win-x64 --self-contained true --artifacts-path &quot;$(MSBuildProjectDirectory)/../artifacts/bundled-runner&quot; -o &quot;$(TargetDir)ImportRunner/win-x64&quot; --nologo" />
+  </Target>
+  <Target Name="CopyImportNativeAssets" AfterTargets="CopyToDebugPlugins" DependsOnTargets="BundleImportRunner" Condition="'$(Configuration)' == 'Debug' and '$(TargetFramework)' != ''">
+    <ItemGroup>
+      <ImportNativeAssets Include="$(TargetDir)runtimes\**\*" />
+      <ImportRunnerAssets Include="$(TargetDir)ImportRunner\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ImportNativeAssets)" DestinationFiles="@(ImportNativeAssets->'$(DebugPluginsDir)\runtimes\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ImportRunnerAssets)" DestinationFiles="@(ImportRunnerAssets->'$(DebugPluginsDir)\ImportRunner\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -1,6 +1,6 @@
-﻿namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON
+namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON
 {
-	internal sealed record JsonFileParserConfiguration : IFileParserConfiguration
+	public sealed record JsonFileParserConfiguration : IFileParserConfiguration
 	{
 		#region Properties
 

@@ -5,6 +5,30 @@ on:
     types: [published]
 
 jobs:
+  publish-cli:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: dotnet test -c Release
+      - name: Publish standalone Windows runner
+        run: dotnet publish Scrubbler.Cli/Scrubbler.Cli.csproj -c Release -r win-x64 --self-contained true -o artifacts/cli-win-x64
+      - name: Attach CLI to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          Copy-Item README.md artifacts/cli-win-x64/README.md
+          Compress-Archive -Path artifacts/cli-win-x64/* -DestinationPath artifacts/scrubbler-cli-win-x64.zip
+          gh release upload "$env:RELEASE_TAG" artifacts/scrubbler-cli-win-x64.zip
   publish:
     uses: Scrubbler-Dev/Scrubbler-Plugins/.github/workflows/publish-plugin-reusable.yml@main
     with:

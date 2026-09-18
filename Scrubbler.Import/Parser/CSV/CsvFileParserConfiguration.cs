@@ -6,7 +6,7 @@ namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.CSV;
 /// <summary>
 /// Immutable configuration snapshot for CSV scrobble parsing.
 /// </summary>
-internal sealed record CsvFileParserConfiguration : IFileParserConfiguration
+public sealed record CsvFileParserConfiguration : IFileParserConfiguration
 {
     #region Properties
 
@@ -19,6 +19,8 @@ internal sealed record CsvFileParserConfiguration : IFileParserConfiguration
     /// Field delimiter (e.g. ",", ";", "\\t").
     /// </summary>
     public required string Delimiter { get; init; }
+
+    public bool HasHeaderRecord { get; init; }
 
     public required int TimestampFieldIndex { get; init; }
     public required int TrackFieldIndex { get; init; }
@@ -53,7 +55,7 @@ internal sealed record CsvFileParserConfiguration : IFileParserConfiguration
     /// </summary>
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(Delimiter))
+        if (string.IsNullOrEmpty(Delimiter))
             throw new InvalidOperationException("Delimiter must not be empty.");
 
         if (TimestampFieldIndex < 0)

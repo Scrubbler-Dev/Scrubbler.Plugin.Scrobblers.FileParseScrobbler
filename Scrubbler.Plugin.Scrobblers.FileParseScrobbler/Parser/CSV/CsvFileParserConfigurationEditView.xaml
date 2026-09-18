@@ -25,6 +25,7 @@
             <!-- CSV Basics -->
             <StackPanel Spacing="4">
                 <TextBlock Text="CSV Layout" FontWeight="SemiBold"/>
+                <CheckBox Content="First row is a header" IsChecked="{Binding HasHeaderRecord, Mode=TwoWay}" />
 
                 <TextBox
                     Header="Field delimiter"

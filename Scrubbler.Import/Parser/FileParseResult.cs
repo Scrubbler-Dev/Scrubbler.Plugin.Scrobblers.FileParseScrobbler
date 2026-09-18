@@ -1,9 +1,9 @@
-using Scrubbler.PluginBase;
+using ScrobbleData = Scrubbler.Import.ImportTrack;
 using System.Globalization;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser;
 
-internal sealed class FileParseResult(IEnumerable<ScrobbleData> scrobbles, IEnumerable<string> errors)
+public sealed class FileParseResult(IEnumerable<ScrobbleData> scrobbles, IEnumerable<string> errors)
 {
     #region Properties
 

@@ -131,7 +131,7 @@ public class JsonFileParserTests
 				Assert.That(result.Errors, Is.Empty);
 				Assert.That(result.Scrobbles, Is.Not.Empty);
 			}
-			var scrobbles = new List<ScrobbleData>(result.Scrobbles);
+			var scrobbles = result.Scrobbles.ToList();
 			Assert.That(scrobbles, Has.Count.EqualTo(1));
 			var s = scrobbles[0];
 			using (Assert.EnterMultipleScope())
@@ -178,7 +178,7 @@ public class JsonFileParserTests
 
 			// Assert
 			Assert.That(result.Errors, Is.Empty);
-			var scrobbles = new List<ScrobbleData>(result.Scrobbles);
+			var scrobbles = result.Scrobbles.ToList();
 			Assert.That(scrobbles, Has.Count.EqualTo(1));
 			var s = scrobbles[0];
 

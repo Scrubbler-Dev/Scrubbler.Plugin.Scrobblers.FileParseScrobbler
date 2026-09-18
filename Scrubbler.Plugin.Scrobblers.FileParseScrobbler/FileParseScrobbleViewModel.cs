@@ -12,12 +12,6 @@ using Scrubbler.PluginBase.Services;
 
 namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 
-internal enum ScrobbleMode
-{
-    Import,
-    UseScrobbleTimestamp
-}
-
 internal sealed partial class FileParseScrobbleViewModel : ScrobbleMultipleTimeViewModelBase<ParsedScrobbleViewModel>
 {
     #region Properties
@@ -35,6 +29,7 @@ internal sealed partial class FileParseScrobbleViewModel : ScrobbleMultipleTimeV
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ParseCommand))]
+    [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
     private string _selectedFilePath = string.Empty;
 
     private bool CanParse => File.Exists(SelectedFilePath);
@@ -132,7 +127,7 @@ internal sealed partial class FileParseScrobbleViewModel : ScrobbleMultipleTimeV
                 }
             }
 
-            Scrobbles = new ObservableCollection<ParsedScrobbleViewModel>(result.Scrobbles.Select(s => new ParsedScrobbleViewModel(s)));
+            Scrobbles = new ObservableCollection<ParsedScrobbleViewModel>(result.Scrobbles.Select(s => new ParsedScrobbleViewModel(new ScrobbleData(s.Track, s.Artist, s.Timestamp) { Album = s.Album, AlbumArtist = s.AlbumArtist })));
         }
         catch (Exception ex)
         {

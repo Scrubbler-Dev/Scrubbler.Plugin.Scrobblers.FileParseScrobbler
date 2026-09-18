@@ -21,6 +21,9 @@ internal sealed partial class CsvFileParserConfigurationEditViewModel : Observab
     private string _delimiter = ";";
 
     [ObservableProperty]
+    private bool _hasHeaderRecord;
+
+    [ObservableProperty]
     private int _timestampFieldIndex;
 
     [ObservableProperty]
@@ -50,6 +53,8 @@ internal sealed partial class CsvFileParserConfigurationEditViewModel : Observab
 
     public CsvFileParserConfigurationEditViewModel(CsvFileParserConfiguration config)
     {
+        EncodingCodePage = config.EncodingCodePage;
+        HasHeaderRecord = config.HasHeaderRecord;
         Delimiter = config.Delimiter;
         TimestampFieldIndex = config.TimestampFieldIndex;
         TrackFieldIndex = config.TrackFieldIndex;
@@ -74,6 +79,7 @@ internal sealed partial class CsvFileParserConfigurationEditViewModel : Observab
         {
             EncodingCodePage = EncodingCodePage,
             Delimiter = ResolveDelimiter(Delimiter),
+            HasHeaderRecord = HasHeaderRecord,
             TimestampFieldIndex = TimestampFieldIndex,
             TrackFieldIndex = TrackFieldIndex,
             ArtistFieldIndex = ArtistFieldIndex,

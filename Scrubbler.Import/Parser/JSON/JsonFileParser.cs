@@ -1,11 +1,11 @@
-﻿using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
-using Scrubbler.PluginBase;
+using Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
+using ScrobbleData = Scrubbler.Import.ImportTrack;
 using System.Globalization;
 using System.Text.Json;
 
 namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON
 {
-	internal class JsonFileParser : IFileParser<JsonFileParserConfiguration>
+	public class JsonFileParser : IFileParser<JsonFileParserConfiguration>
 	{
 		public FileParseResult Parse(string file, JsonFileParserConfiguration config, ScrobbleMode mode)
 		{
@@ -30,11 +30,14 @@ namespace Scrubbler.Plugin.Scrobblers.FileParseScrobbler.Parser.JSON
 			{
 				try
 				{
-					var timestamp = mode == ScrobbleMode.Import ? DateTime.Now : ReadDateTimeOffset(element, config.TimestampFieldName).DateTime;
+					DateTimeOffset? original = null;
+					try { original = ReadDateTimeOffset(element, config.TimestampFieldName); }
+					catch (Exception) when (mode == ScrobbleMode.Import) { }
+					var timestamp = mode == ScrobbleMode.Import ? DateTimeOffset.Now : original!.Value;
 					var track = ReadRequiredString(element, config.TrackFieldName);
 					var artist = ReadRequiredString(element, config.ArtistFieldName);
 
-					var scrobble = new ScrobbleData(track, artist, timestamp);
+					var scrobble = new ScrobbleData(track, artist, timestamp) { OriginalTimestamp = original, SourceIndex = index };
 
 					var album = ReadOptionalString(element, config.AlbumFieldName);
 					if (!string.IsNullOrWhiteSpace(album))
