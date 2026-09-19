@@ -38,7 +38,7 @@ public sealed class ImportJob
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset NextEligibleRunUtc { get; set; }
     public bool Paused { get; set; }
-    public int MaxPerRun { get; set; } = 500;
+    public int MaxPerRun { get; set; } = 600;
     public double IntervalHours { get; set; } = 24;
     public TimestampPolicy TimestampPolicy { get; set; }
     public int SpacingSeconds { get; set; } = 1;
@@ -48,7 +48,7 @@ public sealed class ImportJob
     {
         if (TimestampPolicy != TimestampPolicy.Import) throw new ArgumentException("Scheduled imports only support import mode.");
         if (string.IsNullOrWhiteSpace(Account)) throw new ArgumentException("A Last.fm username is required.");
-        if (MaxPerRun is < 1 or > 500) throw new ArgumentException("Amount must be between 1 and 500.");
+        if (MaxPerRun is < 1 or > 600) throw new ArgumentException("Amount must be between 1 and 600.");
         if (!double.IsFinite(IntervalHours) || IntervalHours is < 24 or > 8760)
             throw new ArgumentException("Interval must be between 24 and 8760 hours.");
         if (SpacingSeconds < 1 || (long)SpacingSeconds * MaxPerRun > 86400)

@@ -14,7 +14,7 @@ internal sealed partial class FileParseScrobbleViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
     private bool _hasImportAccount;
-    [ObservableProperty] private string _importAmount = "500";
+    [ObservableProperty] private string _importAmount = "600";
     [ObservableProperty] private string _importIntervalHours = "24";
     [ObservableProperty] private bool _importAllowParseErrors;
     [ObservableProperty]

@@ -32,7 +32,7 @@ Run these commands from the published folder. `--help` lists all options. Option
 ```powershell
 .\scrubbler-cli.exe profile spotify --output spotify-profile.json
 .\scrubbler-cli.exe imports preview --file history.json --profile spotify-profile.json
-.\scrubbler-cli.exe imports create --file history.json --profile spotify-profile.json --account your-username --max-per-run 500 --min-interval 24h
+.\scrubbler-cli.exe imports create --file history.json --profile spotify-profile.json --account your-username --max-per-run 600 --min-interval 24h
 .\scrubbler-cli.exe schedule install --api-config "C:\Scrubbler\Plugins\Scrubbler.Plugin.Accounts.LastFm\Scrubbler.Plugin.Accounts.LastFm.dll"
 .\scrubbler-cli.exe imports status
 .\scrubbler-cli.exe imports pause JOB_ID
@@ -48,7 +48,7 @@ Authentication reuses the existing Last.fm account plugin's saved session, read-
 
 ## Timing, dates and quotas
 
-- Each job permits 1–500 tracks per run (default 500), leaving room for normal listening. The interval is configurable from 24 hours upwards, with an additional one-minute buffer.
+- Each job permits 1–600 tracks per run (default 600), leaving room for normal listening. The interval is configurable from 24 hours upwards, with an additional one-minute buffer.
 - A durable cooldown is reserved before each request and extended after its response. It is shared across jobs for the same account, so a crash, another job or another CLI process cannot bypass it. Jobs are processed in creation order; a large earlier job can delay later jobs for the same account.
 - GUI/manual scrobbles and other clients are not counted by this queue. The configured amount is a local import budget, not a claim about Last.fm's current server quota. The server's daily-limit response always stops the run.
 - Scheduled jobs always use import mode, generating ordered timestamps shortly before each run. This changes the dates visible on Last.fm; source dates remain in the local archive. `--spacing-seconds` defaults to 1 and must fit the run inside 24 hours. The manual-scrobbling timestamp selector does not affect scheduled jobs.

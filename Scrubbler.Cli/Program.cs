@@ -12,7 +12,7 @@ static async Task<int> RunAsync(string[] arguments)
     {
         Console.WriteLine("""
             Scrubbler persistent file imports
-            imports create --file PATH --account USER [--profile PATH] [--max-per-run 500]
+            imports create --file PATH --account USER [--profile PATH] [--max-per-run 600]
                            [--min-interval 24h] [--spacing-seconds 1]
                            [--allow-parse-errors true]
             imports preview --file PATH [--profile PATH]
@@ -84,7 +84,7 @@ static async Task<int> RunAsync(string[] arguments)
                 var interval = Option("--min-interval") ?? "24h";
                 if (!interval.EndsWith('h')) throw new ArgumentException("Interval must be expressed in hours, e.g. 24h.");
                 var job = store.Create(Required("--file"), Profile(), Required("--account"),
-                    int.Parse(Option("--max-per-run") ?? "500", CultureInfo.InvariantCulture),
+                    int.Parse(Option("--max-per-run") ?? "600", CultureInfo.InvariantCulture),
                     double.Parse(interval[..^1], CultureInfo.InvariantCulture), policy,
                     int.Parse(Option("--spacing-seconds") ?? "1", CultureInfo.InvariantCulture),
                     bool.Parse(Option("--allow-parse-errors") ?? "false"));

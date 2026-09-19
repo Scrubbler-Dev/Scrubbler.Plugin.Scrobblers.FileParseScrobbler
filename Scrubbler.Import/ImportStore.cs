@@ -43,7 +43,7 @@ public sealed class ImportStore
         catch (IOException ex) { throw new ImportBusyException("Another import operation is running. Try again when it finishes.", ex); }
     }
 
-    public ImportJob Create(string file, ImportProfile profile, string account, int amount = 500, double intervalHours = 24,
+    public ImportJob Create(string file, ImportProfile profile, string account, int amount = 600, double intervalHours = 24,
         TimestampPolicy policy = TimestampPolicy.Import, int spacingSeconds = 1, bool allowParseErrors = false, bool initiallyPaused = false)
     {
         using var lease = AcquireLock();

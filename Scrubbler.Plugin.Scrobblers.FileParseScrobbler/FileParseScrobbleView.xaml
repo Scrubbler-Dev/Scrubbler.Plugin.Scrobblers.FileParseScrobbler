@@ -207,7 +207,7 @@
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Tracks per run" FontSize="13" FontWeight="Normal"/>
                                     <TextBox Text="{Binding ImportAmount, Mode=TwoWay}" AutomationProperties.Name="Tracks per run"/>
-                                    <TextBlock Text="1–500 tracks" Style="{StaticResource ImportCaption}"/>
+                                    <TextBlock Text="1–600 tracks" Style="{StaticResource ImportCaption}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="6">
                                     <TextBlock Text="Repeat every" FontSize="13" FontWeight="Normal"/>
