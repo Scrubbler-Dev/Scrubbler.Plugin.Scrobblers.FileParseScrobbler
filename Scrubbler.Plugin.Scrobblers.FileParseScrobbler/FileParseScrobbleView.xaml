@@ -162,7 +162,12 @@
 
                 <controls:ScrobbleTimeControl Grid.Row="6" DataContext="{Binding ScrobbleTimeVM}"/>
             </Grid>
-            <ScrollViewer Grid.Row="1" Visibility="{Binding ImportsTabVisibility}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <Grid Grid.Row="1" Visibility="{Binding ImportsTabVisibility}">
+                <TextBlock Text="Automated imports are currently only available on Windows"
+                           Visibility="{Binding UnsupportedImportsVisibility}"
+                           Style="{StaticResource ImportCaption}" Margin="16,24"
+                           VerticalAlignment="Top"/>
+            <ScrollViewer Visibility="{Binding ImportControlsVisibility}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16" Padding="12,16,12,24" MaxWidth="800" HorizontalAlignment="Stretch">
                     <Border Style="{StaticResource ImportCard}">
                         <StackPanel Spacing="14">
@@ -206,16 +211,44 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Tracks per run" FontSize="13" FontWeight="Normal"/>
-                                    <TextBox Text="{Binding ImportAmount, Mode=TwoWay}" AutomationProperties.Name="Tracks per run"/>
+                                    <NumberBox Value="{Binding ImportAmount, Mode=TwoWay}" Minimum="1" Maximum="600"
+                                               SmallChange="1" LargeChange="10" SpinButtonPlacementMode="Inline"
+                                               ValidationMode="InvalidInputOverwritten" ValueChanged="IntegerValueChanged"
+                                               AutomationProperties.Name="Tracks per run"/>
                                     <TextBlock Text="1–600 tracks" Style="{StaticResource ImportCaption}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="6">
                                     <TextBlock Text="Repeat every" FontSize="13" FontWeight="Normal"/>
-                                    <TextBox Text="{Binding ImportIntervalHours, Mode=TwoWay}" AutomationProperties.Name="Hours between imports"/>
+                                    <NumberBox Value="{Binding ImportIntervalHours, Mode=TwoWay}" Minimum="24" Maximum="8760"
+                                               SmallChange="1" LargeChange="24" SpinButtonPlacementMode="Inline"
+                                               ValidationMode="InvalidInputOverwritten" ValueChanged="IntegerValueChanged"
+                                               AutomationProperties.Name="Hours between imports"/>
                                     <TextBlock Text="Hours · minimum 24" Style="{StaticResource ImportCaption}"/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Text="Tracks get new Last.fm dates." Style="{StaticResource ImportCaption}"/>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Date offset (days)" FontSize="13" FontWeight="Normal"/>
+                                <NumberBox Value="{Binding ImportDateOffsetDays, Mode=TwoWay}" Minimum="0" Maximum="10"
+                                           SmallChange="1" LargeChange="1" SpinButtonPlacementMode="Inline"
+                                           ValidationMode="InvalidInputOverwritten" ValueChanged="IntegerValueChanged"
+                                           AutomationProperties.Name="Date offset in days" Width="180" HorizontalAlignment="Left"/>
+                                <TextBlock Text="0–10 days earlier; 0 uses the run date." Style="{StaticResource ImportCaption}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Scrobble time" FontSize="13" FontWeight="Normal"/>
+                                <CheckBox Content="Use run time" IsChecked="{Binding ImportUseRunTime, Mode=TwoWay}"/>
+                                <TimePicker Time="{Binding ImportScrobbleTime, Mode=TwoWay}" ClockIdentifier="24HourClock" Visibility="{Binding ScrobbleTimePickerVisibility}" AutomationProperties.Name="Scrobble time of day"/>
+                                <TextBlock Text="Tracks end at this local time, spaced backward by at least one second. A future selected time waits until it is in the past." Style="{StaticResource ImportCaption}" Visibility="{Binding ScrobbleTimePickerVisibility}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="First run" FontSize="13" FontWeight="Normal"/>
+                                <CheckBox Content="Now" IsChecked="{Binding ImportStartNow, Mode=TwoWay}"/>
+                                <StackPanel Spacing="8" Visibility="{Binding FirstRunPickerVisibility}">
+                                    <DatePicker Date="{Binding ImportStartDate, Mode=TwoWay}" AutomationProperties.Name="First run date"/>
+                                    <TimePicker Time="{Binding ImportStartTime, Mode=TwoWay}" ClockIdentifier="24HourClock" AutomationProperties.Name="First run time"/>
+                                    <TextBlock Text="Your local time. Existing account cooldowns still apply." Style="{StaticResource ImportCaption}"/>
+                                </StackPanel>
+                            </StackPanel>
                             <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
                                 <Grid ColumnSpacing="16">
                                     <Grid.ColumnDefinitions>
@@ -250,5 +283,6 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
+            </Grid>
     </Grid>
 </UserControl>

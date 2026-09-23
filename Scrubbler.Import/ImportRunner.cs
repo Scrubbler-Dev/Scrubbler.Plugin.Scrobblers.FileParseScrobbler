@@ -40,11 +40,31 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
             job.Validate();
             var selected = entries.Where(e => e.Status == EntryStatus.Pending).Take(job.MaxPerRun).ToArray();
             var now = _clock.GetUtcNow();
+            var usedTimestamps = entries.Where(e => e.SubmittedTimestamp.HasValue)
+                .Select(e => e.SubmittedTimestamp!.Value.ToUnixTimeSeconds()).ToHashSet();
             for (var i = 0; i < selected.Length; i++)
             {
                 var entry = selected[i];
-                entry.SubmittedTimestamp ??= DateTimeOffset.FromUnixTimeSeconds(now.ToUnixTimeSeconds() - 1 - (long)(selected.Length - 1 - i) * job.SpacingSeconds);
-                if (entry.SubmittedTimestamp < now.AddDays(-14) || entry.SubmittedTimestamp > now)
+                if (entry.SubmittedTimestamp == null)
+                {
+                    var timestamp = DateTimeOffset.FromUnixTimeSeconds(now.ToUnixTimeSeconds() - 1 - (long)(selected.Length - 1 - i) * job.SpacingSeconds);
+                    try
+                    {
+                        var candidate = job.ScrobbleTimeOfDay is { } time
+                            ? ImportTimestamp.AtTime(now, job.DateOffsetDays, time, TimeZoneInfo.Local).AddSeconds(-(long)(selected.Length - 1 - i) * job.SpacingSeconds)
+                            : ImportTimestamp.Backdate(timestamp, job.DateOffsetDays, TimeZoneInfo.Local);
+                        while (!usedTimestamps.Add(candidate.ToUnixTimeSeconds()))
+                            candidate = candidate.AddSeconds(-job.SpacingSeconds);
+                        entry.SubmittedTimestamp = candidate;
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        entry.Status = EntryStatus.NeedsAttention;
+                        entry.Message = ex.Message;
+                        continue;
+                    }
+                }
+                if (entry.SubmittedTimestamp < now.AddDays(-14) || (job.ScrobbleTimeOfDay == null && entry.SubmittedTimestamp > now))
                 {
                     entry.Status = EntryStatus.NeedsAttention;
                     entry.Message = "Submission timestamp is outside Last.fm's accepted window. Review timestamp policy.";
@@ -52,6 +72,14 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
             }
             var invalid = selected.Where(e => e.Status == EntryStatus.NeedsAttention).ToArray();
             if (invalid.Length > 0) store.Save(job, invalid, $"{invalid.Length} entries need timestamp review.");
+            var future = selected.Where(e => e.Status == EntryStatus.Pending && e.SubmittedTimestamp > now).ToArray();
+            if (future.Length > 0)
+            {
+                job.NextEligibleRunUtc = future.Max(e => e.SubmittedTimestamp!.Value).AddSeconds(1);
+                // Preserve this run's chosen date across waits, including midnight.
+                store.Save(job, selected, "Waiting until the selected scrobble timestamps are in the past.");
+                continue;
+            }
             foreach (var batch in selected.Where(e => e.Status == EntryStatus.Pending).Chunk(50))
             {
                 cancellationToken.ThrowIfCancellationRequested();

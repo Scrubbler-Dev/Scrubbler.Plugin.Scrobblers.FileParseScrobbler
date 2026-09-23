@@ -28,7 +28,7 @@ public sealed class ImportTests
         Directory.Delete(_directory, true);
     }
 
-    private ImportJob Create(int count = 3, int amount = 500, string account = "alice", TimestampPolicy policy = TimestampPolicy.Import)
+    private ImportJob Create(int count = 3, int amount = 500, string account = "alice", TimestampPolicy policy = TimestampPolicy.Import, DateTimeOffset? firstRunUtc = null, int dateOffsetDays = 0, TimeSpan? scrobbleTime = null)
     {
         var file = Path.Combine(_directory, Guid.NewGuid() + ".json");
         File.WriteAllText(file, JsonSerializer.Serialize(Enumerable.Range(0, count).Select(i => new
@@ -36,7 +36,120 @@ public sealed class ImportTests
             ts = "2020-01-01T01:00:00Z", master_metadata_track_name = "Track " + i,
             master_metadata_album_artist_name = "Artist", ms_played = 100000
         })));
-        return _store.Create(file, new ImportProfile(), account, amount, policy: policy);
+        return _store.Create(file, new ImportProfile(), account, amount, policy: policy, firstRunUtc: firstRunUtc, dateOffsetDays: dateOffsetDays, scrobbleTimeOfDay: scrobbleTime);
+    }
+
+    [Test]
+    public async Task Fixed_scrobble_time_and_date_offset_give_repeated_tracks_distinct_seconds_across_batches()
+    {
+        var time = new TimeSpan(9, 30, 0);
+        var job = Create(55, dateOffsetDays: 10, scrobbleTime: time);
+        var entries = _store.Entries(job.Id);
+        foreach (var entry in entries) entry.Track.Track = "Repeated track";
+        using (_store.AcquireLock()) _store.Save(job, entries, "Repeated track fixture.");
+        var reopened = new ImportStore(_directory);
+        Assert.That(reopened.Get(job.Id).ScrobbleTimeOfDay, Is.EqualTo(time));
+        var sender = new FakeSubmitter();
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        var timestamps = reopened.Entries(job.Id).Select(e => e.SubmittedTimestamp!.Value).ToArray();
+        var start = ImportTimestamp.AtTime(_clock.Now, 10, time, TimeZoneInfo.Local);
+        Assert.That(timestamps, Is.EqualTo(Enumerable.Range(0, 55).Select(i => start.AddSeconds(i - 54))));
+        Assert.That(timestamps, Is.All.LessThanOrEqualTo(start));
+        Assert.That(timestamps.Distinct().Count(), Is.EqualTo(55));
+        Assert.That(sender.Batches, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public async Task Future_scrobble_time_waits_and_keeps_timestamps_across_restart_and_midnight()
+    {
+        var localNow = new DateTimeOffset(2026, 9, 16, 22, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 9, 16)));
+        _clock.Now = localNow.ToUniversalTime();
+        var job = Create(scrobbleTime: new TimeSpan(23, 59, 59));
+        var sender = new FakeSubmitter();
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Is.Empty);
+        var timestamps = _store.Entries(job.Id).Select(e => e.SubmittedTimestamp).ToArray();
+        _clock.Now = _store.Get(job.Id).NextEligibleRunUtc;
+        await new ImportRunner(new ImportStore(_directory), sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+        Assert.That(_store.Entries(job.Id).Select(e => e.SubmittedTimestamp), Is.EqualTo(timestamps));
+    }
+
+    [TestCase(-1)]
+    [TestCase(86400)]
+    public void Invalid_fixed_time_is_rejected(int seconds)
+    {
+        Assert.Throws<ArgumentException>(() => Create(scrobbleTime: TimeSpan.FromSeconds(seconds)));
+    }
+
+    [TestCase(0)]
+    [TestCase(10)]
+    public async Task Date_offset_is_persisted_and_applied_without_changing_cooldown(int days)
+    {
+        var job = Create(dateOffsetDays: days);
+        var reopened = new ImportStore(_directory);
+        Assert.That(reopened.Get(job.Id).DateOffsetDays, Is.EqualTo(days));
+        await new ImportRunner(reopened, new FakeSubmitter(), _clock).RunDueAsync();
+        var entries = reopened.Entries(job.Id);
+        for (var i = 0; i < entries.Count; i++)
+            Assert.That(entries[i].SubmittedTimestamp, Is.EqualTo(
+                ImportTimestamp.Backdate(_clock.Now.AddSeconds(-entries.Count + i), days, TimeZoneInfo.Local)));
+        Assert.That(reopened.Get(job.Id).NextEligibleRunUtc, Is.EqualTo(_clock.Now.AddHours(24).AddMinutes(1)));
+        Assert.That(entries.All(e => e.Track.OriginalTimestamp!.Value.Year == 2020), Is.True);
+    }
+
+    [TestCase(-1)]
+    [TestCase(11)]
+    public void Invalid_date_offset_is_rejected(int days)
+    {
+        Assert.Throws<ArgumentException>(() => Create(dateOffsetDays: days));
+        Assert.That(_store.List(), Is.Empty);
+    }
+
+    [Test]
+    public void Backdating_preserves_Berlin_clock_time_across_daylight_saving_change()
+    {
+        var berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        var timestamp = new DateTimeOffset(2026, 10, 28, 15, 30, 0, TimeSpan.FromHours(1));
+        var result = TimeZoneInfo.ConvertTime(ImportTimestamp.Backdate(timestamp, 10, berlin), berlin);
+        Assert.That(result.DateTime, Is.EqualTo(new DateTime(2026, 10, 18, 15, 30, 0)));
+        Assert.That(result.Offset, Is.EqualTo(TimeSpan.FromHours(2)));
+    }
+
+    [Test]
+    public void Nonexistent_backdated_clock_time_requires_review_instead_of_silently_changing_time()
+    {
+        var berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        var timestamp = new DateTimeOffset(2026, 4, 1, 2, 30, 0, TimeSpan.FromHours(2));
+        Assert.Throws<ArgumentException>(() => ImportTimestamp.Backdate(timestamp, 3, berlin));
+    }
+
+    [Test]
+    public async Task Future_first_run_survives_restart_and_resume_without_running_early()
+    {
+        var firstRun = _clock.Now.AddHours(3).ToOffset(TimeSpan.FromHours(2));
+        var job = Create(firstRunUtc: firstRun);
+        var sender = new FakeSubmitter();
+        _store.Pause(job.Id, true);
+        _store.Pause(job.Id, false);
+        var reopened = new ImportStore(_directory);
+        Assert.That(reopened.Get(job.Id).NextEligibleRunUtc, Is.EqualTo(firstRun.ToUniversalTime()));
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Is.Empty);
+        _clock.Now = firstRun;
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void Scheduler_first_boundary_preserves_the_chosen_instant()
+    {
+        var firstRun = new DateTimeOffset(2026, 10, 25, 2, 30, 0, TimeSpan.FromHours(1));
+        var xml = XDocument.Parse(WindowsImportSchedule.CreateXml(@"C:\Runner\scrubbler-cli.exe", @"C:\Imports", "User", firstRun));
+        XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+        var boundary = xml.Descendants(ns + "StartBoundary").Single().Value;
+        Assert.That(DateTimeOffset.Parse(boundary), Is.EqualTo(firstRun));
+        Assert.That(boundary, Does.EndWith("+01:00"));
     }
 
     [Test]

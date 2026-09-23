@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Scrubbler.Import;
@@ -10,13 +9,38 @@ namespace Scrubbler.Plugin.Scrobbler.FileParseScrobbler;
 
 internal sealed partial class FileParseScrobbleViewModel
 {
+    public bool SupportsAutomatedImports => OperatingSystem.IsWindows();
+    public Microsoft.UI.Xaml.Visibility ImportControlsVisibility => SupportsAutomatedImports
+        ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility UnsupportedImportsVisibility => SupportsAutomatedImports
+        ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     [ObservableProperty] private string _importAccount = "";
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
     private bool _hasImportAccount;
-    [ObservableProperty] private string _importAmount = "600";
-    [ObservableProperty] private string _importIntervalHours = "24";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
+    private double _importAmount = 600;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
+    private double _importIntervalHours = 24;
     [ObservableProperty] private bool _importAllowParseErrors;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(QueueImportCommand))]
+    private double _importDateOffsetDays;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScrobbleTimePickerVisibility))]
+    private bool _importUseRunTime = true;
+    [ObservableProperty] private TimeSpan _importScrobbleTime = new(12, 0, 0);
+    public Microsoft.UI.Xaml.Visibility ScrobbleTimePickerVisibility => ImportUseRunTime
+        ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirstRunPickerVisibility))]
+    private bool _importStartNow = true;
+    [ObservableProperty] private DateTimeOffset _importStartDate = DateTimeOffset.Now;
+    [ObservableProperty] private TimeSpan _importStartTime = DateTime.Now.TimeOfDay;
+    public Microsoft.UI.Xaml.Visibility FirstRunPickerVisibility => ImportStartNow
+        ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ImportStatusVisibility))]
     private string _importStatus = "";
@@ -50,7 +74,12 @@ internal sealed partial class FileParseScrobbleViewModel
     public bool HasImportJobs => ImportJobs.Count > 0;
     public string ImportCreationHint => ImportJobs.Any(j => !j.Completed)
         ? "Finish or delete the existing import before starting another." : "";
-    private bool CanQueueImport => HasImportAccount && File.Exists(SelectedFilePath) && !ImportJobs.Any(j => !j.Completed);
+    private bool ValidImportNumbers => IsIntegerInRange(ImportAmount, 1, 600)
+        && IsIntegerInRange(ImportIntervalHours, 24, 8760) && IsIntegerInRange(ImportDateOffsetDays, 0, 10);
+    private static bool IsIntegerInRange(double value, int minimum, int maximum) =>
+        double.IsFinite(value) && value >= minimum && value <= maximum && value == Math.Truncate(value);
+    private bool CanQueueImport => SupportsAutomatedImports && HasImportAccount && File.Exists(SelectedFilePath)
+        && ValidImportNumbers && !ImportJobs.Any(j => !j.Completed);
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ImportProgressText))]
     [NotifyPropertyChangedFor(nameof(ImportTaskSummary))]
@@ -75,6 +104,7 @@ internal sealed partial class FileParseScrobbleViewModel
     {
         // Refresh on every visit, including after sign-in, logout or account removal.
         HasImportAccount = false;
+        if (!SupportsAutomatedImports) return;
         try
         {
             var settings = AutomaticImportSetup.Resolve(AutomaticImportSetup.PluginRoot);
@@ -113,9 +143,22 @@ internal sealed partial class FileParseScrobbleViewModel
             const TimestampPolicy policy = TimestampPolicy.Import;
             // Capture configuration and source path before awaiting the confirmation dialog.
             var file = SelectedFilePath;
-            var amount = int.Parse(ImportAmount, CultureInfo.InvariantCulture);
-            var interval = double.Parse(ImportIntervalHours, CultureInfo.InvariantCulture);
+            if (!ValidImportNumbers) throw new InvalidOperationException("Enter whole numbers within the allowed ranges.");
+            var amount = (int)ImportAmount;
+            var interval = (int)ImportIntervalHours;
             var allowErrors = ImportAllowParseErrors;
+            TimeSpan? scrobbleTime = ImportUseRunTime ? null : ImportScrobbleTime;
+            var dateOffsetDays = (int)ImportDateOffsetDays;
+            DateTimeOffset? firstRunUtc = null;
+            if (!ImportStartNow)
+            {
+                var local = DateTime.SpecifyKind(ImportStartDate.Date.Add(ImportStartTime), DateTimeKind.Unspecified);
+                if (TimeZoneInfo.Local.IsInvalidTime(local))
+                    throw new InvalidOperationException("That time does not exist because of the daylight-saving change. Choose another time.");
+                firstRunUtc = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, TimeZoneInfo.Local));
+                if (firstRunUtc <= DateTimeOffset.UtcNow)
+                    throw new InvalidOperationException("Choose a future date and time, or select Now.");
+            }
             var parsed = await Task.Run(() => profile.Parse(file, policy));
             var count = parsed.Scrobbles.Count();
             var errors = parsed.Errors.Count();
@@ -124,18 +167,22 @@ internal sealed partial class FileParseScrobbleViewModel
             {
                 Title = "Start scheduled import",
                 Content = $"Import {count:N0} tracks to {account}, up to {amount} every {interval} hours? " +
+                    (firstRunUtc.HasValue ? $"First run: {firstRunUtc.Value.ToLocalTime():g} (local time). " : "First run: now. ") +
                     (errors > 0 ? $"{errors} unreadable rows will be skipped and saved in an error report. " : "") +
-                    "Tracks will appear on Last.fm with new dates. " +
+                    $"Tracks will appear on Last.fm with dates {dateOffsetDays} days before each run. " +
+                    (scrobbleTime.HasValue ? $"Scrobble time ends at {scrobbleTime.Value:hh\\:mm}, with tracks at least one second apart. " : "Scrobble time follows the run time. ") +
                     "Your file stays intact. Imports run with Scrubbler closed while you are signed in to Windows.",
                 PrimaryButtonText = "Start import", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close
             });
             if (result != ContentDialogResult.Primary) return;
             var store = new ImportStore();
             // Keep a new job paused until setup succeeds, including when an older task already exists.
-            createdJob = await Task.Run(() => store.Create(file, profile, account, amount, interval, policy, allowParseErrors: allowErrors, initiallyPaused: true));
+            createdJob = await Task.Run(() => store.Create(file, profile, account, amount, interval, policy, allowParseErrors: allowErrors, initiallyPaused: true, firstRunUtc: firstRunUtc, dateOffsetDays: dateOffsetDays, scrobbleTimeOfDay: scrobbleTime));
             await AutomaticImportSetup.EnableAsync(store, setup, account);
             store.Pause(createdJob.Id, false);
-            ImportStatus = await RequestImmediateRun(store, $"{createdJob.SourceName} is scheduled.");
+            ImportStatus = firstRunUtc > DateTimeOffset.UtcNow
+                ? $"{createdJob.SourceName} is scheduled to start on {firstRunUtc.Value.ToLocalTime():g}."
+                : await RequestImmediateRun(store, $"{createdJob.SourceName} is scheduled.");
             await RefreshImports();
             SelectedImportJob = ImportJobs.FirstOrDefault(j => j.Job.Id == createdJob.Id);
         }

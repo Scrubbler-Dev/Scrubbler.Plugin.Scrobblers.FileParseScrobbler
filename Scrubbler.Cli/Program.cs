@@ -13,7 +13,7 @@ static async Task<int> RunAsync(string[] arguments)
         Console.WriteLine("""
             Scrubbler persistent file imports
             imports create --file PATH --account USER [--profile PATH] [--max-per-run 600]
-                           [--min-interval 24h] [--spacing-seconds 1]
+                           [--min-interval 24h] [--spacing-seconds 1] [--date-offset-days 0] [--scrobble-time HH:mm]
                            [--allow-parse-errors true]
             imports preview --file PATH [--profile PATH]
             imports run-due [--api-config PATH]
@@ -50,7 +50,7 @@ static async Task<int> RunAsync(string[] arguments)
         }
         var allowed = command switch
         {
-            "imports create" => "--file --account --profile --max-per-run --min-interval --spacing-seconds --allow-parse-errors",
+            "imports create" => "--file --account --profile --max-per-run --min-interval --spacing-seconds --allow-parse-errors --date-offset-days --scrobble-time",
             "imports preview" => "--file --profile",
             "imports run-due" => "--api-config",
             "imports status" => "--json",
@@ -87,7 +87,9 @@ static async Task<int> RunAsync(string[] arguments)
                     int.Parse(Option("--max-per-run") ?? "600", CultureInfo.InvariantCulture),
                     double.Parse(interval[..^1], CultureInfo.InvariantCulture), policy,
                     int.Parse(Option("--spacing-seconds") ?? "1", CultureInfo.InvariantCulture),
-                    bool.Parse(Option("--allow-parse-errors") ?? "false"));
+                    bool.Parse(Option("--allow-parse-errors") ?? "false"),
+                    dateOffsetDays: int.Parse(Option("--date-offset-days") ?? "0", CultureInfo.InvariantCulture),
+                    scrobbleTimeOfDay: Option("--scrobble-time") is { } time ? TimeSpan.ParseExact(time, @"hh\:mm", CultureInfo.InvariantCulture) : null);
                 Console.WriteLine($"Created job {job.Id}. Source preserved. Configure 'schedule install' to run in the background.");
                 break;
             case "imports status":

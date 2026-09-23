@@ -44,14 +44,18 @@ public sealed class ImportStore
     }
 
     public ImportJob Create(string file, ImportProfile profile, string account, int amount = 600, double intervalHours = 24,
-        TimestampPolicy policy = TimestampPolicy.Import, int spacingSeconds = 1, bool allowParseErrors = false, bool initiallyPaused = false)
+        TimestampPolicy policy = TimestampPolicy.Import, int spacingSeconds = 1, bool allowParseErrors = false, bool initiallyPaused = false,
+        DateTimeOffset? firstRunUtc = null, int dateOffsetDays = 0, TimeSpan? scrobbleTimeOfDay = null)
     {
         using var lease = AcquireLock();
         if (List().Any(j => !j.Completed))
             throw new InvalidOperationException("An unfinished import already exists. Finish or delete it before starting another.");
         var job = new ImportJob { Account = account.Trim().ToLowerInvariant(), SourceHash = "", SourceName = Path.GetFileName(file),
             ProfileJson = profile.Serialize(), MaxPerRun = amount, IntervalHours = intervalHours, TimestampPolicy = policy, SpacingSeconds = spacingSeconds, Paused = initiallyPaused };
+        job.DateOffsetDays = dateOffsetDays;
+        job.ScrobbleTimeOfDay = scrobbleTimeOfDay;
         job.Validate();
+        job.NextEligibleRunUtc = firstRunUtc?.ToUniversalTime() ?? DateTimeOffset.MinValue;
         // Parse the exact bytes saved as the snapshot, even if the external source changes later.
         var temporary = Path.Combine(DirectoryPath, $"{job.Id}.source.tmp");
         try

@@ -42,10 +42,15 @@ public sealed class ImportJob
     public double IntervalHours { get; set; } = 24;
     public TimestampPolicy TimestampPolicy { get; set; }
     public int SpacingSeconds { get; set; } = 1;
+    public int DateOffsetDays { get; set; }
+    public TimeSpan? ScrobbleTimeOfDay { get; set; }
     public string? LastMessage { get; set; }
 
     public void Validate()
     {
+        if (DateOffsetDays is < 0 or > 10) throw new ArgumentException("Date offset must be between 0 and 10 days.");
+        if (ScrobbleTimeOfDay is { } time && (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1) || time.Ticks % TimeSpan.TicksPerSecond != 0))
+            throw new ArgumentException("Scrobble time must be a time of day with whole-second precision.");
         if (TimestampPolicy != TimestampPolicy.Import) throw new ArgumentException("Scheduled imports only support import mode.");
         if (string.IsNullOrWhiteSpace(Account)) throw new ArgumentException("A Last.fm username is required.");
         if (MaxPerRun is < 1 or > 600) throw new ArgumentException("Amount must be between 1 and 600.");

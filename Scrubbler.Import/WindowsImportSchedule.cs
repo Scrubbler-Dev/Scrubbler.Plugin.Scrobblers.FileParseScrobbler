@@ -39,7 +39,7 @@ public static class WindowsImportSchedule
                 E("RegistrationInfo", E("Description", "Process due Scrubbler imports. The runner enforces the persisted 24-hour cooldown.")),
                 E("Triggers", E("CalendarTrigger",
                     E("Repetition", E("Interval", "PT1H"), E("Duration", "P1D"), E("StopAtDurationEnd", "false")),
-                    E("StartBoundary", now.LocalDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture)),
+                    E("StartBoundary", now.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture)),
                     E("Enabled", "true"), E("ScheduleByDay", E("DaysInterval", "1"))),
                     E("LogonTrigger", E("Enabled", "true"), E("UserId", user))),
                 E("Principals", E("Principal", new XAttribute("id", "Author"), E("UserId", user), E("LogonType", "InteractiveToken"), E("RunLevel", "LeastPrivilege"))),
@@ -58,7 +58,9 @@ public static class WindowsImportSchedule
             throw new ArgumentException("Select the published scrubbler-cli.exe in its permanent location.");
         var xmlPath = Path.Combine(store.DirectoryPath, "schedule.xml");
         var user = Environment.UserDomainName + "\\" + Environment.UserName;
-        File.WriteAllText(xmlPath, CreateXml(executable, store.DirectoryPath, user, DateTimeOffset.Now), Encoding.Unicode);
+        var now = DateTimeOffset.UtcNow;
+        var firstRun = store.List().Where(j => !j.Completed).Select(j => j.EffectiveNextRunUtc).DefaultIfEmpty(now).Min();
+        File.WriteAllText(xmlPath, CreateXml(executable, store.DirectoryPath, user, firstRun > now ? firstRun : now), Encoding.Unicode);
         await RunAsync("/Create", "/TN", TaskName(store), "/XML", xmlPath, "/F");
     }
 

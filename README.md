@@ -11,6 +11,10 @@ The File Parse plugin and `scrubbler-cli` share the CSV/JSON parsers and a persi
 
 Only one unfinished import is allowed at a time, including paused imports. Finish or delete it before starting another. Deleting removes its queue and progress; the source file, backup and account cooldown remain intact. The CLI provides the same action with `imports delete JOB_ID`.
 
+**Date offset (days)** backdates generated scrobble timestamps by 0–10 calendar days (default 0), preserving local time of day. It applies to each run and does not change the schedule or original archived timestamps. The CLI equivalent is `imports create --date-offset-days 10`. A backdated local time that does not exist during a daylight-saving transition is marked for review instead of silently changing its time.
+
+**Scrobble time** defaults to **Use run time**. Uncheck it to choose a local time for the last track on the offset date; earlier tracks are spaced backward by at least one second, including across submission batches and for identical tracks. The CLI equivalent is `--scrobble-time 09:30`. If a batch would contain future timestamps, it waits until they are in the past, retaining the chosen timestamps across restarts. A batch ending near midnight may extend into the previous day.
+
 No executable paths, plugin files or separate CLI installation are needed. The Windows runner, including its .NET runtime, ships inside the plugin. Authentication is saved when signing in, without requiring a restart. A failed setup leaves the new import paused; **Resume** retries setup automatically. Parsing errors block creation unless you explicitly enable importing valid rows only; excluded rows get an error report. The entire file is imported, regardless of manual table selection.
 
 The Windows task checks hourly and at logon, runs under the current user without elevation, and catches up after missed starts. It works with Scrubbler closed while that Windows user is logged in. It cannot run while the computer is off. Pausing imports preserves the queue.
