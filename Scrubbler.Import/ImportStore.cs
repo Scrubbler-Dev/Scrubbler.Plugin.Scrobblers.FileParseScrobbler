@@ -134,7 +134,8 @@ public sealed class ImportStore
         return command.ExecuteScalar() is string value ? DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture) : DateTimeOffset.MinValue;
     }
 
-    public void Save(ImportJob job, IEnumerable<ImportEntry> changedEntries, string message, DateTimeOffset? accountNextRun = null)
+    public void Save(ImportJob job, IEnumerable<ImportEntry> changedEntries, string message, DateTimeOffset? accountNextRun = null,
+        bool restoreAccountCooldown = false)
     {
         var changed = changedEntries.ToArray();
         using var db = Open();
@@ -157,7 +158,8 @@ public sealed class ImportStore
             Execute("INSERT INTO attempts(job_id,utc,payload) VALUES($job,$utc,$payload)", ("$job", job.Id),
                 ("$utc", DateTimeOffset.UtcNow.ToString("O")), ("$payload", JsonSerializer.Serialize(changed, ImportJson.Options)));
         if (accountNextRun.HasValue)
-            Execute("INSERT INTO accounts VALUES($account,$next) ON CONFLICT(account) DO UPDATE SET next_utc=MAX(next_utc,$next)",
+            Execute("INSERT INTO accounts VALUES($account,$next) ON CONFLICT(account) DO UPDATE SET next_utc=" +
+                (restoreAccountCooldown ? "$next" : "MAX(next_utc,$next)"),
                 ("$account", job.Account), ("$next", accountNextRun.Value.ToUniversalTime().ToString("O")));
         Execute("INSERT INTO audit(job_id,utc,message) VALUES($job,$utc,$message)", ("$job", job.Id), ("$utc", DateTimeOffset.UtcNow.ToString("O")), ("$message", message));
         transaction.Commit();

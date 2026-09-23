@@ -98,7 +98,12 @@ public sealed class LastFmSubmitter(HttpClient http, Func<LastFmCredentials> cre
         using var content = new FormUrlEncodedContent(parameters);
         using var response = await http.PostAsync("https://ws.audioscrobbler.com/2.0/", content, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParseResponse(body, entries);
+        try { return ParseResponse(body, entries); }
+        catch (Exception ex) when (ex is System.Xml.XmlException or InvalidDataException or FormatException or OverflowException)
+        {
+            // Keep protocol diagnostics, never the response body or signed request.
+            throw new InvalidDataException($"Last.fm response validation failed (HTTP {(int)response.StatusCode}): {ex.GetType().Name}: {ex.Message}", ex);
+        }
     }
 
     public static IReadOnlyList<SubmissionResult> ParseResponse(string xml, IReadOnlyList<ImportEntry> entries)
@@ -119,13 +124,14 @@ public sealed class LastFmSubmitter(HttpClient http, Func<LastFmCredentials> cre
         }
         if ((string?)root.Attribute("status") != "ok") throw new InvalidDataException("Missing Last.fm status.");
         var scrobbles = root.Element("scrobbles")?.Elements("scrobble").ToArray();
-        if (scrobbles == null || scrobbles.Length != entries.Count) throw new InvalidDataException("Incomplete Last.fm response.");
+        if (scrobbles == null || scrobbles.Length != entries.Count)
+            throw new InvalidDataException($"Incomplete Last.fm response: expected {entries.Count} scrobbles, received {scrobbles?.Length ?? 0}.");
         var results = new List<SubmissionResult>();
         for (var i = 0; i < entries.Count; i++)
         {
             var scrobble = scrobbles[i];
             if ((long?)scrobble.Element("timestamp") != entries[i].SubmittedTimestamp!.Value.ToUnixTimeSeconds())
-                throw new InvalidDataException("Response timestamps do not match request order.");
+                throw new InvalidDataException($"Response timestamp mismatch at index {i}: expected {entries[i].SubmittedTimestamp!.Value.ToUnixTimeSeconds()}, received {scrobble.Element("timestamp")?.Value ?? "(missing)"}.");
             var ignored = scrobble.Element("ignoredMessage") ?? scrobble.Element("ignoredmessage");
             var code = (int?)ignored?.Attribute("code");
             var outcome = code switch { 0 => SubmissionOutcome.Accepted, 5 => SubmissionOutcome.DailyLimit,

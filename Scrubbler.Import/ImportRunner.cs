@@ -84,6 +84,8 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 now = _clock.GetUtcNow();
+                var previousAccountCooldown = store.AccountNextRun(job.Account);
+                var previousJobCooldown = job.NextEligibleRunUtc;
                 foreach (var entry in batch) { entry.Status = EntryStatus.InFlight; entry.AttemptedAtUtc = now; }
                 job.NextEligibleRunUtc = now.AddHours(job.IntervalHours).AddMinutes(1);
                 // Durable intent and cooldown precede any network I/O.
@@ -93,11 +95,14 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
                 try
                 {
                     results = await submitter.SubmitAsync(job.Account, batch, cancellationToken);
-                    if (results.Count != batch.Length) throw new InvalidDataException("Response count does not match request.");
+                    if (results.Count != batch.Length) throw new InvalidDataException($"Response count does not match request: expected {batch.Length}, received {results.Count}.");
                 }
                 catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException or System.Xml.XmlException or FormatException or OverflowException)
                 {
-                    results = batch.Select(_ => new SubmissionResult(SubmissionOutcome.Uncertain, "No reliable response. Review Last.fm before retrying.")).ToArray();
+                    var reason = ex is OperationCanceledException
+                        ? cancellationToken.IsCancellationRequested ? "Submission cancelled before a reliable response was recorded." : "Submission timed out before a reliable response was recorded."
+                        : $"{ex.GetType().Name}: {ex.Message}";
+                    results = batch.Select(_ => new SubmissionResult(SubmissionOutcome.Uncertain, reason + " Review Last.fm before retrying.")).ToArray();
                 }
 
                 for (var i = 0; i < batch.Length; i++)
@@ -116,8 +121,19 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
                     if (entry.Status == EntryStatus.Pending) entry.SubmittedTimestamp = null;
                 }
                 if (results.Any(r => r.Outcome is SubmissionOutcome.Uncertain or SubmissionOutcome.AuthenticationRequired)) job.Paused = true;
-                job.NextEligibleRunUtc = _clock.GetUtcNow().AddHours(job.IntervalHours).AddMinutes(1);
-                store.Save(job, batch, string.Join(", ", results.GroupBy(r => r.Outcome).Select(g => $"{g.Key}: {g.Count()}")), job.NextEligibleRunUtc);
+                var keepCooldown = results.Any(r => r.Outcome is SubmissionOutcome.Accepted or SubmissionOutcome.Uncertain or SubmissionOutcome.DailyLimit);
+                job.NextEligibleRunUtc = keepCooldown
+                    ? _clock.GetUtcNow().AddHours(job.IntervalHours).AddMinutes(1)
+                    : results.Any(r => r.Outcome == SubmissionOutcome.Retry)
+                        ? _clock.GetUtcNow().AddHours(1) : previousJobCooldown;
+                // Definitive rejection consumed no allowance. Restore only this
+                // batch's reservation; earlier accepted batches retain their cooldown.
+                var outcomes = string.Join(", ", results.GroupBy(r => r.Outcome).Select(g => $"{g.Key}: {g.Count()}"));
+                var reasons = results.Where(r => r.Outcome != SubmissionOutcome.Accepted && !string.IsNullOrWhiteSpace(r.Message))
+                    .Select(r => $"{r.Outcome}: {r.Message}".Replace('\r', ' ').Replace('\n', ' ')).Distinct();
+                var details = string.Join("; ", reasons);
+                store.Save(job, batch, $"Batch size: {batch.Length} | {outcomes}" + (details.Length > 0 ? $" | Details: {details}" : ""),
+                    keepCooldown ? job.NextEligibleRunUtc : previousAccountCooldown, restoreAccountCooldown: !keepCooldown);
                 if (results.Any(r => r.Outcome is SubmissionOutcome.Uncertain or SubmissionOutcome.AuthenticationRequired or SubmissionOutcome.DailyLimit or SubmissionOutcome.Retry)) break;
             }
         }

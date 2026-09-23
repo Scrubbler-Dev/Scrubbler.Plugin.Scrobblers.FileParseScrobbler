@@ -70,9 +70,12 @@ public sealed record JobSummary(ImportJob Job, IReadOnlyDictionary<EntryStatus, 
         Job.TimestampPolicy != TimestampPolicy.Import ? "This task uses original dates, which are only supported by manual scrobbling." :
         Counts.GetValueOrDefault(EntryStatus.Uncertain) + Counts.GetValueOrDefault(EntryStatus.InFlight) > 0 ? "Some submissions need review before this import can continue." :
         Job.Paused ? "Paused. Resume when you are ready." :
+        EffectiveNextRunUtc > DateTimeOffset.UtcNow && EffectiveNextRunUtc > Job.NextEligibleRunUtc
+            ? $"Account cooldown until {EffectiveNextRunUtc.ToLocalTime():g}. This also applies to newly created imports." :
         EffectiveNextRunUtc > DateTimeOffset.UtcNow ? $"Next import after {EffectiveNextRunUtc.ToLocalTime():g}." : "Ready for the next background check.";
     public bool Completed => Counts.All(c => c.Key is EntryStatus.Accepted or EntryStatus.Skipped || c.Value == 0);
     public override string ToString() => $"{Job.Id} | {Job.Account} | {Job.SourceName} | {(Completed ? "Completed" : Job.Paused ? "Paused" : "Enabled")} | " +
+        $"Total: {Counts.Values.Sum()} | Per run: {Job.MaxPerRun} | " +
         string.Join(", ", Counts.Select(c => $"{c.Key}: {c.Value}")) +
         (Completed ? "" : EffectiveNextRunUtc == default ? " | Ready" : $" | Next: {EffectiveNextRunUtc:u}") + $" | {Job.LastMessage}";
 }

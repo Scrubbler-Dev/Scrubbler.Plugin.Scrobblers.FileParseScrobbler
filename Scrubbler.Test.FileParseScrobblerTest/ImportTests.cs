@@ -337,6 +337,89 @@ public sealed class ImportTests
         await new ImportRunner(_store, sender, _clock).RunDueAsync();
         Assert.That(_store.Get(job.Id).Paused, Is.True);
         Assert.That(_store.Entries(job.Id).All(e => e.Status == EntryStatus.Pending), Is.True);
+        Assert.That(_store.AccountNextRun(job.Account), Is.EqualTo(DateTimeOffset.MinValue));
+    }
+
+    [Test]
+    public async Task Uncertain_submission_log_preserves_exception_reason_and_task_size()
+    {
+        _ = Create(55);
+        var sender = new FakeSubmitter { Outcomes = _ => throw new HttpRequestException("Connection lost") };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        var log = new ImportStore(_directory).List().Single().ToString();
+        Assert.That(log, Does.Contain("Total: 55").And.Contain("Per run: 500"));
+        Assert.That(log, Does.Contain("Batch size: 50").And.Contain("Uncertain: 50"));
+        Assert.That(log, Does.Contain("HttpRequestException: Connection lost"));
+    }
+
+    [Test]
+    public async Task Timeout_log_explains_why_submission_is_uncertain()
+    {
+        _ = Create();
+        var sender = new FakeSubmitter { Outcomes = _ => throw new TaskCanceledException() };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(_store.List().Single().ToString(), Does.Contain("Submission timed out"));
+    }
+
+    [Test]
+    public async Task Unknown_response_code_is_included_in_run_summary()
+    {
+        _ = Create();
+        var sender = new FakeSubmitter { Outcomes = batch => batch.Select(_ => new SubmissionResult(SubmissionOutcome.Uncertain, "Last.fm ignored code 99.")).ToArray() };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(_store.List().Single().ToString(), Does.Contain("Last.fm ignored code 99."));
+    }
+
+    [TestCase(SubmissionOutcome.AuthenticationRequired)]
+    [TestCase(SubmissionOutcome.Rejected)]
+    [TestCase(SubmissionOutcome.Retry)]
+    public async Task Confirmed_failed_attempt_does_not_block_recreated_import(SubmissionOutcome outcome)
+    {
+        var job = Create();
+        var failure = new FakeSubmitter { Outcomes = batch => batch.Select(_ => new SubmissionResult(outcome)).ToArray() };
+        await new ImportRunner(_store, failure, _clock).RunDueAsync();
+        _store.Delete(job.Id);
+        _ = Create();
+        var success = new FakeSubmitter();
+        await new ImportRunner(_store, success, _clock).RunDueAsync();
+        Assert.That(success.Batches, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Deleting_future_first_run_does_not_reserve_account_cooldown()
+    {
+        var job = Create(firstRunUtc: _clock.Now.AddDays(1));
+        await new ImportRunner(_store, new FakeSubmitter(), _clock).RunDueAsync();
+        _store.Delete(job.Id);
+        _ = Create();
+        var sender = new FakeSubmitter();
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Failed_later_batch_preserves_cooldown_from_accepted_batch()
+    {
+        var job = Create(55);
+        var calls = 0;
+        var sender = new FakeSubmitter { Outcomes = batch =>
+        {
+            var outcome = ++calls == 1 ? SubmissionOutcome.Accepted : SubmissionOutcome.AuthenticationRequired;
+            return batch.Select(_ => new SubmissionResult(outcome)).ToArray();
+        }};
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(_store.Entries(job.Id).Count(e => e.Status == EntryStatus.Accepted), Is.EqualTo(50));
+        Assert.That(_store.AccountNextRun(job.Account), Is.EqualTo(_clock.Now.AddHours(24).AddMinutes(1)));
+    }
+
+    [TestCase(SubmissionOutcome.Uncertain)]
+    [TestCase(SubmissionOutcome.DailyLimit)]
+    public async Task Uncertain_or_limited_attempt_keeps_account_cooldown(SubmissionOutcome outcome)
+    {
+        var job = Create();
+        var sender = new FakeSubmitter { Outcomes = batch => batch.Select(_ => new SubmissionResult(outcome)).ToArray() };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(_store.AccountNextRun(job.Account), Is.EqualTo(_clock.Now.AddHours(24).AddMinutes(1)));
     }
 
     [Test]
