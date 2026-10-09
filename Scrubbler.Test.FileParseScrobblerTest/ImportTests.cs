@@ -469,6 +469,62 @@ public sealed class ImportTests
     }
 
     [Test]
+    public void Filtered_response_returned_after_accepted_plays_is_matched_by_timestamp()
+    {
+        // Captured from a live three-play request: Last.fm moved the middle,
+        // filtered "Various Artists" entry to the end of the response.
+        var entries = new[]
+        {
+            new ImportEntry { Track = new("American Boy (feat. Kanye West)", "Estelle", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(1791577248) },
+            new ImportEntry { Track = new("Never Come Down", "Various Artists", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(1791577428) },
+            new ImportEntry { Track = new("Come Down", "Sylvan Esso", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(1791577608) }
+        };
+        var xml = """
+            <lfm status="ok"><scrobbles ignored="1" accepted="2">
+              <scrobble><timestamp>1791577248</timestamp><ignoredMessage code="0" /></scrobble>
+              <scrobble><timestamp>1791577608</timestamp><ignoredMessage code="0" /></scrobble>
+              <scrobble><timestamp>1791577428</timestamp><ignoredMessage code="1" /></scrobble>
+            </scrobbles></lfm>
+            """;
+        var results = LastFmSubmitter.ParseResponse(xml, entries);
+        Assert.That(results.Select(r => r.Outcome), Is.EqualTo(new[] { SubmissionOutcome.Accepted, SubmissionOutcome.Rejected, SubmissionOutcome.Accepted }));
+        Assert.That(results[1].Message, Is.EqualTo("Last.fm ignored code 1."));
+    }
+
+    [TestCase("123", "123")]
+    [TestCase("123", "999")]
+    [TestCase("123", null)]
+    public void Duplicate_unexpected_or_missing_response_timestamps_are_rejected(string first, string? second)
+    {
+        var entries = new[]
+        {
+            new ImportEntry { Track = new("A", "B", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(123) },
+            new ImportEntry { Track = new("C", "D", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(124) }
+        };
+        XElement Scrobble(string? timestamp) => new("scrobble",
+            timestamp == null ? null : new XElement("timestamp", timestamp),
+            new XElement("ignoredMessage", new XAttribute("code", "0")));
+        var xml = new XElement("lfm", new XAttribute("status", "ok"), new XElement("scrobbles", Scrobble(first), Scrobble(second)));
+        Assert.Throws<InvalidDataException>(() => LastFmSubmitter.ParseResponse(xml.ToString(), entries));
+    }
+
+    [Test]
+    public async Task Invalid_response_is_checkpointed_as_uncertain_and_does_not_retry()
+    {
+        var job = Create(55, amount: 55);
+        var sender = new FakeSubmitter { Outcomes = _ => throw new InvalidDataException("Response timestamp mismatch") };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+        Assert.That(_store.Entries(job.Id).Count(e => e.Status == EntryStatus.Uncertain), Is.EqualTo(50));
+        Assert.That(_store.Entries(job.Id).Count(e => e.Status == EntryStatus.InFlight), Is.Zero);
+        Assert.That(_store.Entries(job.Id).Count(e => e.Status == EntryStatus.Pending), Is.EqualTo(5));
+        Assert.That(_store.Get(job.Id).Paused, Is.True);
+        Assert.That(_store.Get(job.Id).LastMessage, Does.Contain("Response timestamp mismatch"));
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public async Task Account_mismatch_does_not_send_network_request()
     {
         using var http = new HttpClient(new RejectNetwork());

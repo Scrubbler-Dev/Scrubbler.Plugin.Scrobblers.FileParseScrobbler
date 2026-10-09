@@ -97,7 +97,7 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
                     results = await submitter.SubmitAsync(job.Account, batch, cancellationToken);
                     if (results.Count != batch.Length) throw new InvalidDataException($"Response count does not match request: expected {batch.Length}, received {results.Count}.");
                 }
-                catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException or System.Xml.XmlException or FormatException or OverflowException)
+                catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or System.Xml.XmlException or FormatException or OverflowException)
                 {
                     var reason = ex is OperationCanceledException
                         ? cancellationToken.IsCancellationRequested ? "Submission cancelled before a reliable response was recorded." : "Submission timed out before a reliable response was recorded."

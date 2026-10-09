@@ -126,12 +126,22 @@ public sealed class LastFmSubmitter(HttpClient http, Func<LastFmCredentials> cre
         var scrobbles = root.Element("scrobbles")?.Elements("scrobble").ToArray();
         if (scrobbles == null || scrobbles.Length != entries.Count)
             throw new InvalidDataException($"Incomplete Last.fm response: expected {entries.Count} scrobbles, received {scrobbles?.Length ?? 0}.");
+        // Last.fm returns accepted plays before filtered plays, so response order
+        // can differ from request order. Import timestamps uniquely identify entries.
+        var byTimestamp = new Dictionary<long, XElement>();
+        foreach (var scrobble in scrobbles)
+        {
+            if ((long?)scrobble.Element("timestamp") is not { } timestamp)
+                throw new InvalidDataException("Last.fm response contains a scrobble without a timestamp.");
+            if (!byTimestamp.TryAdd(timestamp, scrobble))
+                throw new InvalidDataException($"Last.fm response contains duplicate timestamp {timestamp}.");
+        }
         var results = new List<SubmissionResult>();
         for (var i = 0; i < entries.Count; i++)
         {
-            var scrobble = scrobbles[i];
-            if ((long?)scrobble.Element("timestamp") != entries[i].SubmittedTimestamp!.Value.ToUnixTimeSeconds())
-                throw new InvalidDataException($"Response timestamp mismatch at index {i}: expected {entries[i].SubmittedTimestamp!.Value.ToUnixTimeSeconds()}, received {scrobble.Element("timestamp")?.Value ?? "(missing)"}.");
+            var timestamp = entries[i].SubmittedTimestamp!.Value.ToUnixTimeSeconds();
+            if (!byTimestamp.Remove(timestamp, out var scrobble))
+                throw new InvalidDataException($"Last.fm response is missing submission timestamp {timestamp} at request index {i}.");
             var ignored = scrobble.Element("ignoredMessage") ?? scrobble.Element("ignoredmessage");
             var code = (int?)ignored?.Attribute("code");
             var outcome = code switch { 0 => SubmissionOutcome.Accepted, 5 => SubmissionOutcome.DailyLimit,
