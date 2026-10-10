@@ -268,19 +268,22 @@
                         <StackPanel Spacing="12">
                             <Grid>
                                 <TextBlock Text="Your import" Style="{StaticResource ImportSectionTitle}" VerticalAlignment="Center"/>
-                                <Button Command="{Binding RefreshImportsCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}" HorizontalAlignment="Right" ToolTipService.ToolTip="Refresh progress" AutomationProperties.Name="Refresh progress">
+                                <Button Command="{Binding RefreshImportsCommand}" IsEnabled="{Binding ReviewIdle}" Style="{StaticResource ImportSecondaryButton}" HorizontalAlignment="Right" ToolTipService.ToolTip="Refresh progress" AutomationProperties.Name="Refresh progress">
                                     <FontIcon Glyph="&#xE72C;" FontSize="14"/>
                                 </Button>
                             </Grid>
                             <TextBlock Text="{Binding ImportTaskSummary}" TextWrapping="Wrap" FontWeight="SemiBold"/>
                             <TextBlock Text="{Binding ImportProgressText}" Style="{StaticResource ImportCaption}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding ReviewIdle}">
                                 <Button Content="Pause" Command="{Binding PauseImportCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}"/>
-                                <Button Content="Resume" Command="{Binding ResumeImportCommand}" IsEnabled="{Binding HasImportJobs}" Style="{StaticResource ImportSecondaryButton}"/>
+                                <Button Content="Resume" Command="{Binding ResumeImportCommand}" Style="{StaticResource ImportSecondaryButton}"/>
                                 <Button Content="Delete" Command="{Binding DeleteImportCommand}" Style="{StaticResource ImportSecondaryButton}"/>
                             </StackPanel>
+                            <Button Content="Review submissions" Command="{Binding ReviewSubmissionsCommand}" Style="{StaticResource ImportSecondaryButton}" HorizontalAlignment="Left"/>
+                            <ProgressRing IsActive="{Binding IsReviewBusy}" Width="24" Height="24" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </ScrollViewer>
             </Grid>

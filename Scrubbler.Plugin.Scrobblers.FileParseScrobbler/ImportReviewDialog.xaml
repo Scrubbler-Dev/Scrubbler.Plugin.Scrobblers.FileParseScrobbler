@@ -1,0 +1,68 @@
+<ContentDialog
+    x:Class="Scrubbler.Plugin.Scrobbler.FileParseScrobbler.ImportReviewDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Review submissions"
+    PrimaryButtonText="Save decisions"
+    SecondaryButtonText="Check again"
+    CloseButtonText="Close"
+    DefaultButton="Close"
+    IsPrimaryButtonEnabled="{Binding CanSave}"
+    IsSecondaryButtonEnabled="{Binding HasEntries}"
+    Style="{ThemeResource DefaultContentDialogStyle}">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">760</x:Double>
+        <Style x:Key="ReviewCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </ContentDialog.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="12" Padding="0,8">
+            <TextBlock Text="{Binding Account}" Style="{StaticResource ReviewCaption}"/>
+            <TextBlock Text="{Binding Result}" TextWrapping="Wrap"/>
+            <TextBlock Text="Your import stays paused and its cooldown is kept. Resume it after closing the review when all uncertain entries are resolved." Style="{StaticResource ReviewCaption}"/>
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="{Binding ErrorVisibility}"/>
+            <TextBlock Text="Choose a decision next to each entry. Select a track to compare its details. Checking again resets unsaved choices." Style="{StaticResource ReviewCaption}" Visibility="{Binding EntriesVisibility}"/>
+            <ListView ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                      SelectionMode="Single" MaxHeight="240" AutomationProperties.Name="Submissions to review" Visibility="{Binding EntriesVisibility}">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnSpacing="16" Padding="0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="220"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding MatchDescription}" Style="{StaticResource ReviewCaption}"/>
+                            </StackPanel>
+                            <ComboBox Grid.Column="1" Header="Decision" ItemsSource="{Binding Choices}" DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedChoice, Mode=TwoWay}" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                      AutomationProperties.Name="{Binding Title}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Visibility="{Binding EntriesVisibility}">
+                <StackPanel Spacing="8" DataContext="{Binding SelectedEntry}">
+                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Album}" Style="{StaticResource ReviewCaption}"/>
+                    <TextBlock Text="{Binding Timestamp}" Style="{StaticResource ReviewCaption}"/>
+                    <TextBlock Text="{Binding PreviousMessage}" Style="{StaticResource ReviewCaption}"/>
+                    <TextBlock Text="{Binding Candidates}" Style="{StaticResource ReviewCaption}"/>
+                    <TextBlock Text="{Binding RetryUnavailableReason}" Style="{StaticResource ReviewCaption}"/>
+                </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

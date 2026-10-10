@@ -69,6 +69,7 @@ public sealed record JobSummary(ImportJob Job, IReadOnlyDictionary<EntryStatus, 
     public string ProgressDescription => Completed ? "Import complete." :
         Job.TimestampPolicy != TimestampPolicy.Import ? "This task uses original dates, which are only supported by manual scrobbling." :
         Counts.GetValueOrDefault(EntryStatus.Uncertain) + Counts.GetValueOrDefault(EntryStatus.InFlight) > 0 ? "Some submissions need review before this import can continue." :
+        Counts.GetValueOrDefault(EntryStatus.NeedsAttention) > 0 ? "Some tracks were rejected. Review submissions to resolve them." :
         Job.Paused ? "Paused. Resume when you are ready." :
         EffectiveNextRunUtc > DateTimeOffset.UtcNow && EffectiveNextRunUtc > Job.NextEligibleRunUtc
             ? $"Account cooldown until {EffectiveNextRunUtc.ToLocalTime():g}. This also applies to newly created imports." :

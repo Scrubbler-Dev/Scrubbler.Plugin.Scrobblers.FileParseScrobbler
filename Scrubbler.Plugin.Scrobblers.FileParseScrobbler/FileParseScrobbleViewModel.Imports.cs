@@ -64,7 +64,7 @@ internal sealed partial class FileParseScrobbleViewModel
     private async Task ShowImportsTab()
     {
         SelectedTabIndex = 1;
-        await RefreshImports();
+        if (!IsReviewBusy && !IsReviewOpen) await RefreshImports();
     }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasImportJobs))]
@@ -78,12 +78,15 @@ internal sealed partial class FileParseScrobbleViewModel
         && IsIntegerInRange(ImportIntervalHours, 24, 8760) && IsIntegerInRange(ImportDateOffsetDays, 0, 10);
     private static bool IsIntegerInRange(double value, int minimum, int maximum) =>
         double.IsFinite(value) && value >= minimum && value <= maximum && value == Math.Truncate(value);
-    private bool CanQueueImport => SupportsAutomatedImports && HasImportAccount && File.Exists(SelectedFilePath)
+    private bool CanQueueImport => SupportsAutomatedImports && HasImportAccount && ReviewIdle && File.Exists(SelectedFilePath)
         && ValidImportNumbers && !ImportJobs.Any(j => !j.Completed);
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ImportProgressText))]
     [NotifyPropertyChangedFor(nameof(ImportTaskSummary))]
     [NotifyCanExecuteChangedFor(nameof(DeleteImportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReviewSubmissionsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResumeImportCommand))]
+    [NotifyPropertyChangedFor(nameof(HasReviewableEntries))]
     private JobSummary? _selectedImportJob;
     public string ImportTaskSummary => SelectedImportJob?.DisplayName ?? "No import yet";
     public string ImportProgressText => SelectedImportJob?.ProgressDescription ?? "Start your first import above. Progress and upcoming runs will appear here.";
@@ -99,7 +102,7 @@ internal sealed partial class FileParseScrobbleViewModel
         SelectedFilePath = file.Path;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(ReviewIdle))]
     private async Task RefreshImports()
     {
         // Refresh on every visit, including after sign-in, logout or account removal.
@@ -202,10 +205,10 @@ internal sealed partial class FileParseScrobbleViewModel
 
     [RelayCommand]
     private async Task PauseImport() => await SetImportPaused(true);
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanResumeImport))]
     private async Task ResumeImport() => await SetImportPaused(false);
 
-    private bool CanDeleteImport => SelectedImportJob != null;
+    private bool CanDeleteImport => SelectedImportJob != null && ReviewIdle;
 
     [RelayCommand(CanExecute = nameof(CanDeleteImport))]
     private async Task DeleteImport()

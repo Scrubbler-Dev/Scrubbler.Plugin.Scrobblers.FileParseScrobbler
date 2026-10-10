@@ -193,6 +193,39 @@ public sealed class ImportStore
         Save(job, [], paused ? "Paused by user." : "Resumed by user.");
     }
 
+    // Apply explicit review decisions together only if the reviewed entries are still current.
+    public void ResolveReviewed(string id, string account, IReadOnlyList<ImportEntryResolution> resolutions)
+    {
+        using var lease = AcquireLock();
+        var job = Get(id);
+        if (!job.Paused || !string.Equals(job.Account, account, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The import changed during review. Check Last.fm again.");
+        if (resolutions.Select(r => r.Expected.Id).Distinct().Count() != resolutions.Count)
+            throw new ArgumentException("Each entry may have only one resolution.");
+        var entries = Entries(id).ToDictionary(e => e.Id);
+        var changed = new List<ImportEntry>();
+        foreach (var resolution in resolutions)
+        {
+            if (resolution.Status is not (EntryStatus.Accepted or EntryStatus.Pending or EntryStatus.Skipped))
+                throw new ArgumentException("Choose imported, retry, or skip.");
+            if (!entries.TryGetValue(resolution.Expected.Id, out var entry) || !ImportReviewService.IsUnresolved(entry.Status)
+                || JsonSerializer.Serialize(entry, ImportJson.Options) != JsonSerializer.Serialize(resolution.Expected, ImportJson.Options))
+                throw new InvalidOperationException("An entry changed during review. Check Last.fm again before saving decisions.");
+            entry.Status = resolution.Status;
+            entry.Message = resolution.Status switch
+            {
+                EntryStatus.Accepted => "Confirmed imported during submission review.",
+                EntryStatus.Pending => "Retry explicitly authorized during submission review.",
+                _ => "Skipped during submission review."
+            };
+            changed.Add(entry);
+        }
+        // One transaction, using the current job: neither cooldown is changed,
+        // and the import stays paused until the user explicitly resumes it.
+        if (changed.Count > 0)
+            Save(job, changed, "Submission review saved: " + string.Join(", ", changed.GroupBy(e => e.Status).Select(g => $"{g.Key}: {g.Count()}")) + ".");
+    }
+
     // Explicit manual resolution only. Retrying an uncertain request may duplicate a remote play.
     public void Resolve(string id, string entryId, EntryStatus status)
     {
