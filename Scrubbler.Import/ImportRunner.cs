@@ -32,6 +32,11 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
                 }
                 continue;
             }
+            // Apply the same filter to older queues before choosing a run's tracks.
+            // Local skips reserve no API allowance and do not change either cooldown.
+            var skipped = LastFmScrobbleFeedback.MarkCompilationArtistsSkipped(entries);
+            if (skipped.Length > 0)
+                store.Save(job, skipped, $"Skipped {skipped.Length} entries with 'Various Artists' as the track artist before submission.");
             if (job.Paused || job.NextEligibleRunUtc > _clock.GetUtcNow() || store.AccountNextRun(job.Account) > _clock.GetUtcNow()) continue;
             // An unresolved request blocks all jobs for its destination account.
             if (store.List().Where(j => j.Job.Account == job.Account)
@@ -110,6 +115,7 @@ public sealed class ImportRunner(ImportStore store, IScrobbleSubmitter submitter
                     var entry = batch[i];
                     var result = results[i];
                     entry.Message = result.Message;
+                    entry.LastFmIgnoredCode = result.IgnoredCode;
                     entry.Status = result.Outcome switch
                     {
                         SubmissionOutcome.Accepted => EntryStatus.Accepted,

@@ -166,12 +166,16 @@ internal sealed partial class FileParseScrobbleViewModel
             var count = parsed.Scrobbles.Count();
             var errors = parsed.Errors.Count();
             if (count == 0 || (errors > 0 && !allowErrors)) throw new InvalidOperationException($"Found {count} tracks and {errors} errors. Correct errors or enable importing valid rows only.");
+            var importableCount = count - parsed.Scrobbles.Count(LastFmScrobbleFeedback.UsesCompilationArtist);
+            if (importableCount == 0)
+                throw new InvalidOperationException("All tracks use 'Various Artists' as their track artist. Set the actual track artists before starting an automatic import.");
             var result = await _dialogService.ShowDialogAsync(new ContentDialog
             {
                 Title = "Start scheduled import",
-                Content = $"Import {count:N0} tracks to {account}, up to {amount} every {interval} hours? " +
+                Content = $"Import {importableCount:N0} tracks to {account}, up to {amount} every {interval} hours? " +
                     (firstRunUtc.HasValue ? $"First run: {firstRunUtc.Value.ToLocalTime():g} (local time). " : "First run: now. ") +
                     (errors > 0 ? $"{errors} unreadable rows will be skipped and saved in an error report. " : "") +
+                    LastFmScrobbleFeedback.CompilationArtistFilterNotice(parsed.Scrobbles) +
                     $"Tracks will appear on Last.fm with dates {dateOffsetDays} days before each run. " +
                     (scrobbleTime.HasValue ? $"Scrobble time ends at {scrobbleTime.Value:hh\\:mm}, with tracks at least one second apart. " : "Scrobble time follows the run time. ") +
                     "Your file stays intact. Imports run with Scrubbler closed while you are signed in to Windows.",

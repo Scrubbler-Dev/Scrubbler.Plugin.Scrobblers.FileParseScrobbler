@@ -488,7 +488,155 @@ public sealed class ImportTests
             """;
         var results = LastFmSubmitter.ParseResponse(xml, entries);
         Assert.That(results.Select(r => r.Outcome), Is.EqualTo(new[] { SubmissionOutcome.Accepted, SubmissionOutcome.Rejected, SubmissionOutcome.Accepted }));
-        Assert.That(results[1].Message, Is.EqualTo("Last.fm ignored code 1."));
+        Assert.That(results[1].Message, Does.Contain("Artist was ignored"));
+        Assert.That(results[1].IgnoredCode, Is.EqualTo(1));
+    }
+
+    [TestCase(0, SubmissionOutcome.Accepted, null)]
+    [TestCase(1, SubmissionOutcome.Rejected, "Artist was ignored")]
+    [TestCase(2, SubmissionOutcome.Rejected, "Track was ignored")]
+    [TestCase(3, SubmissionOutcome.Rejected, "Timestamp was too old")]
+    [TestCase(4, SubmissionOutcome.Rejected, "Timestamp was too new")]
+    [TestCase(5, SubmissionOutcome.DailyLimit, "Daily scrobble limit exceeded")]
+    [TestCase(99, SubmissionOutcome.Uncertain, "Last.fm ignored code 99.")]
+    public void Ignored_codes_have_readable_reasons_and_preserve_individual_outcomes(int code, SubmissionOutcome outcome, string? reason)
+    {
+        var entry = new ImportEntry { Track = new("Track", "Artist", _clock.Now), SubmittedTimestamp = DateTimeOffset.FromUnixTimeSeconds(123) };
+        var xml = $"<lfm status=\"ok\"><scrobbles><scrobble><timestamp>123</timestamp><ignoredMessage code=\"{code}\" /></scrobble></scrobbles></lfm>";
+        var result = LastFmSubmitter.ParseResponse(xml, [entry]).Single();
+        Assert.That(result.Outcome, Is.EqualTo(outcome));
+        Assert.That(result.IgnoredCode, Is.EqualTo(code));
+        if (reason == null) Assert.That(result.Message, Is.Null);
+        else Assert.That(result.Message, Does.Contain(reason));
+    }
+
+    [Test]
+    public async Task Artist_rejection_survives_restart_without_pausing_or_repeating_it()
+    {
+        var job = Create(2);
+        var calls = 0;
+        var sender = new FakeSubmitter
+        {
+            Outcomes = batch => ++calls == 1
+                ? batch.Select((_, i) => i == 0
+                    ? new SubmissionResult(SubmissionOutcome.Rejected, LastFmScrobbleFeedback.DescribeIgnoredCode(1), 1)
+                    : new SubmissionResult(SubmissionOutcome.Accepted)).ToArray()
+                : batch.Select(_ => new SubmissionResult(SubmissionOutcome.Accepted)).ToArray()
+        };
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        var reopened = new ImportStore(_directory);
+        var rejected = reopened.Entries(job.Id)[0];
+        Assert.That(rejected.Status, Is.EqualTo(EntryStatus.NeedsAttention));
+        Assert.That(rejected.LastFmIgnoredCode, Is.EqualTo(1));
+        Assert.That(rejected.Message, Does.Contain("Artist was ignored"));
+        Assert.That(reopened.Get(job.Id).Paused, Is.False);
+        _clock.Now = reopened.Get(job.Id).NextEligibleRunUtc;
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        Assert.That(calls, Is.EqualTo(1));
+        Assert.That(reopened.Entries(job.Id)[0].Status, Is.EqualTo(EntryStatus.NeedsAttention));
+    }
+
+    [Test]
+    public void Compilation_filter_notice_only_counts_the_track_artist()
+    {
+        ImportTrack Track(string artist, string? albumArtist = null) => new("Track", artist, _clock.Now) { AlbumArtist = albumArtist };
+        Assert.That(LastFmScrobbleFeedback.CompilationArtistFilterNotice([Track("Real Artist", "Various Artists")]), Is.Empty);
+        var notice = LastFmScrobbleFeedback.CompilationArtistFilterNotice([Track("  various artists  "), Track("Various Artists"), Track("Various Artists Ensemble")]);
+        Assert.That(notice, Does.StartWith("2 tracks").And.Contain("will be skipped before submission"));
+    }
+
+    [Test]
+    public async Task New_import_filters_compilation_track_artists_but_preserves_source_rows_and_album_artists()
+    {
+        var file = Path.Combine(_directory, "compilation.json");
+        var source = """
+            [
+              {"master_metadata_track_name":"Unknown credit","master_metadata_album_artist_name":" Various Artists ","albumArtist":"Various Artists"},
+              {"master_metadata_track_name":"Compilation track","master_metadata_album_artist_name":"Real Artist","albumArtist":"Various Artists"},
+              {"master_metadata_track_name":"Another unknown credit","master_metadata_album_artist_name":"various artists","albumArtist":"Various Artists"},
+              {"master_metadata_track_name":"Named band","master_metadata_album_artist_name":"Various Artists Ensemble","albumArtist":"Various Artists Ensemble"}
+            ]
+            """;
+        File.WriteAllText(file, source);
+        var profile = new ImportProfile { Json = new ImportProfile().Json with { AlbumArtistFieldName = "albumArtist" } };
+        var job = _store.Create(file, profile, "alice");
+        var reopened = new ImportStore(_directory);
+        var entries = reopened.Entries(job.Id);
+        Assert.That(entries.Select(e => e.Status), Is.EqualTo(new[] { EntryStatus.Skipped, EntryStatus.Pending, EntryStatus.Skipped, EntryStatus.Pending }));
+        Assert.That(entries.Select(e => e.Track.SourceIndex), Is.EqualTo(new[] { 0, 1, 2, 3 }));
+        Assert.That(entries.Where(e => e.Status == EntryStatus.Skipped).Select(e => e.Message), Is.All.EqualTo(LastFmScrobbleFeedback.CompilationArtistSkipReason));
+        Assert.That(File.ReadAllText(file), Is.EqualTo(source));
+        Assert.That(File.ReadAllText(Path.Combine(_directory, job.Id + ".source")), Is.EqualTo(source));
+        var sender = new FakeSubmitter();
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches.Single().Select(e => e.Track.Artist), Is.EqualTo(new[] { "Real Artist", "Various Artists Ensemble" }));
+        Assert.That(sender.Batches.Single()[0].Track.AlbumArtist, Is.EqualTo("Various Artists"));
+        Assert.That(reopened.List().Single().Completed, Is.True);
+        Assert.That(reopened.List().Single().DisplayName, Does.Contain("2 skipped"));
+        Assert.That(reopened.Entries(job.Id).Where(e => e.Status == EntryStatus.Skipped).Select(e => e.AttemptedAtUtc), Is.All.Null);
+    }
+
+    [Test]
+    public async Task Existing_queue_filters_before_taking_the_run_quota_and_remains_filtered_after_restart()
+    {
+        var job = Create(4, amount: 2);
+        var entries = _store.Entries(job.Id);
+        foreach (var entry in entries.Take(2)) entry.Track.Artist = "Various Artists";
+        using (_store.AcquireLock()) _store.Save(job, entries, "Queue created before artist filtering.");
+        var sender = new FakeSubmitter();
+        var reopened = new ImportStore(_directory);
+        await new ImportRunner(reopened, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches.Single().Select(e => e.Id), Is.EqualTo(entries.Skip(2).Select(e => e.Id)));
+        Assert.That(new ImportStore(_directory).Entries(job.Id).Select(e => e.Status), Is.EqualTo(new[] { EntryStatus.Skipped, EntryStatus.Skipped, EntryStatus.Accepted, EntryStatus.Accepted }));
+        _clock.Now = reopened.Get(job.Id).NextEligibleRunUtc;
+        await new ImportRunner(new ImportStore(_directory), sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Has.Count.EqualTo(1));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Filtering_only_skipped_tracks_does_not_call_Lastfm_or_change_cooldowns(bool paused)
+    {
+        var job = Create();
+        var entries = _store.Entries(job.Id);
+        foreach (var entry in entries) entry.Track.Artist = "Various Artists";
+        job.Paused = paused;
+        job.NextEligibleRunUtc = _clock.Now.AddHours(2);
+        var accountCooldown = _clock.Now.AddHours(3);
+        using (_store.AcquireLock()) _store.Save(job, entries, "Old queue in cooldown.", accountCooldown);
+        var sender = new FakeSubmitter();
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Is.Empty);
+        Assert.That(_store.Entries(job.Id).Select(e => e.Status), Is.All.EqualTo(EntryStatus.Skipped));
+        Assert.That(_store.Entries(job.Id).Select(e => e.SubmittedTimestamp), Is.All.Null);
+        Assert.That(_store.Get(job.Id).Paused, Is.EqualTo(paused));
+        Assert.That(_store.Get(job.Id).NextEligibleRunUtc, Is.EqualTo(job.NextEligibleRunUtc));
+        Assert.That(_store.AccountNextRun(job.Account), Is.EqualTo(accountCooldown));
+        _clock.Now = accountCooldown;
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Is.Empty);
+        Assert.That(_store.List().Single().Completed, Is.True);
+    }
+
+    [Test]
+    public async Task Artist_filter_preserves_accepted_rejected_and_uncertain_or_interrupted_submissions()
+    {
+        var job = Create(5);
+        var entries = _store.Entries(job.Id);
+        var statuses = new[] { EntryStatus.Accepted, EntryStatus.Uncertain, EntryStatus.InFlight, EntryStatus.NeedsAttention, EntryStatus.Pending };
+        for (var i = 0; i < entries.Count; i++)
+        {
+            entries[i].Track.Artist = "Various Artists";
+            entries[i].Status = statuses[i];
+            entries[i].SubmittedTimestamp = _clock.Now.AddHours(-1).AddSeconds(i);
+        }
+        using (_store.AcquireLock()) _store.Save(job, entries, "Previously attempted entries.");
+        var sender = new FakeSubmitter();
+        await new ImportRunner(_store, sender, _clock).RunDueAsync();
+        Assert.That(sender.Batches, Is.Empty);
+        Assert.That(_store.Entries(job.Id).Select(e => e.Status), Is.EqualTo(new[] { EntryStatus.Accepted, EntryStatus.Uncertain, EntryStatus.Uncertain, EntryStatus.NeedsAttention, EntryStatus.Skipped }));
+        Assert.That(_store.Entries(job.Id).Select(e => e.SubmittedTimestamp), Is.EqualTo(entries.Select(e => e.SubmittedTimestamp)));
+        Assert.That(_store.Get(job.Id).Paused, Is.True);
     }
 
     [TestCase("123", "123")]

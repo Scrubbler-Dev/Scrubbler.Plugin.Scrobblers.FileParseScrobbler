@@ -78,6 +78,8 @@ public sealed class ImportReviewService(ImportStore store, ILastFmHistoryReader?
                 ?? throw new InvalidOperationException("This entry was already resolved or is not in this review. Check Last.fm again.");
             if (decision.Action == ReviewAction.Retry)
             {
+                var metadataReason = LastFmScrobbleFeedback.RetryUnavailableReason(row.Entry);
+                if (metadataReason.Length > 0) throw new InvalidOperationException(metadataReason);
                 if (row.Match is HistoryMatch.Found or HistoryMatch.Ambiguous)
                     throw new InvalidOperationException("This play has a Last.fm match. Review it before choosing a resolution.");
                 if (row.Entry.SubmittedTimestamp is { } timestamp && (timestamp < _clock.GetUtcNow().AddDays(-14) || timestamp > _clock.GetUtcNow()))

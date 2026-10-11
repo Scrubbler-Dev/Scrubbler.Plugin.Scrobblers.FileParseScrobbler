@@ -12,8 +12,11 @@ internal sealed partial class ImportReviewEntryViewModel : ObservableObject
     public string Title => $"Row {Review.Entry.Track.SourceIndex + 1}: {Review.Entry.Track.Artist} — {Review.Entry.Track.Track}";
     public string Album => "Album: " + (Review.Entry.Track.Album ?? "Not provided");
     public string Timestamp => Review.Entry.SubmittedTimestamp is { } time ? $"Submitted: {time.ToLocalTime():yyyy-MM-dd HH:mm:ss zzz}" : "Submission time was not recorded.";
-    public string PreviousMessage => Review.Entry.Message ?? "";
-    public string MatchDescription => Review.Match switch
+    public string PreviousMessage => LastFmScrobbleFeedback.IgnoredCode(Review.Entry) is { } code
+        ? LastFmScrobbleFeedback.DescribeIgnoredCode(code) ?? Review.Entry.Message ?? "" : Review.Entry.Message ?? "";
+    public string MatchDescription => (Review.Match is HistoryMatch.Missing or HistoryMatch.NoTimestamp)
+        && LastFmScrobbleFeedback.RetryUnavailableReason(Review.Entry) is { Length: > 0 } reason
+        ? reason : Review.Match switch
     {
         HistoryMatch.Found => string.IsNullOrWhiteSpace(Review.Entry.Track.Album)
             ? "Found on Last.fm: artist, track and timestamp match."
@@ -35,7 +38,7 @@ internal sealed partial class ImportReviewEntryViewModel : ObservableObject
         get => _selectedChoice;
         set
         {
-            // Rebinding the shared ComboBox can clear selection or write an item
+            // Rebinding a ComboBox can clear selection or write an item
             // from the previous row. Neither transition changes this row's decision.
             if (value != null && Choices.Any(choice => ReferenceEquals(choice, value)))
                 SetProperty(ref _selectedChoice, value);
@@ -51,11 +54,13 @@ internal sealed partial class ImportReviewEntryViewModel : ObservableObject
             new(ReviewAction.MarkImported, "Mark as already imported"),
             new(ReviewAction.Skip, "Skip this entry")
         };
-        if (review.Match is HistoryMatch.Missing or HistoryMatch.NoTimestamp
+        var metadataReason = LastFmScrobbleFeedback.RetryUnavailableReason(review.Entry);
+        if (metadataReason.Length == 0 && (review.Match is HistoryMatch.Missing or HistoryMatch.NoTimestamp)
             && (review.Entry.SubmittedTimestamp is not { } time || (time >= now.AddDays(-14) && time <= now)))
             choices.Add(new(ReviewAction.Retry, "Retry this entry"));
         Choices = choices;
-        RetryUnavailableReason = review.Match is HistoryMatch.Missing or HistoryMatch.NoTimestamp && !choices.Any(c => c.Action == ReviewAction.Retry)
+        RetryUnavailableReason = metadataReason.Length > 0 ? metadataReason
+            : review.Match is HistoryMatch.Missing or HistoryMatch.NoTimestamp && !choices.Any(c => c.Action == ReviewAction.Retry)
             ? "This timestamp is outside Last.fm's accepted window. Skip this entry and scrobble it manually with a valid date if needed."
             : "";
         _selectedChoice = choices.Single(c => c.Action == (review.Match == HistoryMatch.Found ? ReviewAction.MarkImported : ReviewAction.KeepUnresolved));

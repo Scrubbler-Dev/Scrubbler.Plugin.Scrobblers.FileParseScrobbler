@@ -26,6 +26,7 @@ public sealed class ImportEntry
     public DateTimeOffset? SubmittedTimestamp { get; set; }
     public DateTimeOffset? AttemptedAtUtc { get; set; }
     public string? Message { get; set; }
+    public int? LastFmIgnoredCode { get; set; }
 }
 
 public sealed class ImportJob
@@ -61,10 +62,11 @@ public sealed class ImportJob
     }
 }
 
-public sealed record SubmissionResult(SubmissionOutcome Outcome, string? Message = null);
+public sealed record SubmissionResult(SubmissionOutcome Outcome, string? Message = null, int? IgnoredCode = null);
 public sealed record JobSummary(ImportJob Job, IReadOnlyDictionary<EntryStatus, int> Counts, DateTimeOffset EffectiveNextRunUtc = default)
 {
     public string DisplayName => $"{Job.SourceName} — {Counts.GetValueOrDefault(EntryStatus.Accepted):N0} of {Counts.Values.Sum():N0} imported" +
+        (Counts.GetValueOrDefault(EntryStatus.Skipped) > 0 ? $" · {Counts.GetValueOrDefault(EntryStatus.Skipped):N0} skipped" : "") +
         (Completed ? " · Complete" : Job.Paused ? " · Paused" : " · Scheduled");
     public string ProgressDescription => Completed ? "Import complete." :
         Job.TimestampPolicy != TimestampPolicy.Import ? "This task uses original dates, which are only supported by manual scrobbling." :

@@ -70,10 +70,12 @@ public sealed class ImportStore
                 throw new InvalidOperationException($"{errors.Length} parsing errors. Fix the profile or explicitly allow valid rows only. First error: {errors[0]}");
             var entries = parsed.Scrobbles.Select(t => new ImportEntry { Track = t }).ToArray();
             if (entries.Length == 0) throw new InvalidOperationException("The file contains no importable tracks.");
+            var skipped = LastFmScrobbleFeedback.MarkCompilationArtistsSkipped(entries);
             File.Move(temporary, Path.Combine(DirectoryPath, job.Id + ".source"));
             File.WriteAllText(Path.Combine(DirectoryPath, job.Id + ".profile.json"), job.ProfileJson);
             if (errors.Length > 0) File.WriteAllLines(Path.Combine(DirectoryPath, job.Id + ".errors.txt"), errors);
-            Save(job, entries, $"Created with {entries.Length} entries; {errors.Length} parse errors.");
+            Save(job, entries, $"Created with {entries.Length} entries; {errors.Length} parse errors." +
+                (skipped.Length > 0 ? $" Skipped {skipped.Length} entries with 'Various Artists' as the track artist before submission." : ""));
             return job;
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }

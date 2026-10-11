@@ -267,6 +267,63 @@ public sealed class ImportReviewTests
         Assert.That(vm.RetryUnavailableReason, Does.Contain("outside Last.fm's accepted window"));
     }
 
+    [TestCase(1, true)]
+    [TestCase(1, false)]
+    [TestCase(2, true)]
+    [TestCase(2, false)]
+    public async Task Confirmed_metadata_rejections_explain_the_problem_and_require_resolution_instead_of_unchanged_retry(int code, bool legacy)
+    {
+        var (job, entries) = Create(1, EntryStatus.NeedsAttention);
+        var entry = entries[0];
+        entry.Track.Artist = "Various Artists";
+        entry.LastFmIgnoredCode = legacy ? null : code;
+        entry.Message = legacy ? $"Last.fm ignored code {code}." : LastFmScrobbleFeedback.DescribeIgnoredCode(code);
+        using (_store.AcquireLock()) _store.Save(job, entries, "Metadata rejection fixture");
+        var service = new ImportReviewService(_store, new HistoryStub([]), _clock);
+        var review = await service.CheckAsync(job.Id);
+        var vm = new ImportReviewEntryViewModel(review.Entries.Single(), _clock.GetUtcNow());
+        Assert.That(vm.PreviousMessage, Does.Contain(code == 1 ? "Artist was ignored" : "Track was ignored"));
+        Assert.That(vm.MatchDescription, Does.Contain(code == 1 ? "actual track artist" : "correcting the track title"));
+        Assert.That(vm.RetryUnavailableReason, Is.EqualTo(vm.MatchDescription));
+        Assert.That(vm.Choices.Any(c => c.Action == ReviewAction.Retry), Is.False);
+        Assert.That(vm.SelectedChoice.Action, Is.EqualTo(ReviewAction.KeepUnresolved));
+        Assert.Throws<InvalidOperationException>(() => service.Apply(review, [new(entry.Id, ReviewAction.Retry)]));
+        Assert.That(_store.Entries(job.Id).Single().Status, Is.EqualTo(EntryStatus.NeedsAttention));
+        service.Apply(review, [new(entry.Id, ReviewAction.Skip)]);
+        Assert.That(_store.Entries(job.Id).Single().Status, Is.EqualTo(EntryStatus.Skipped));
+        Assert.That(_store.Get(job.Id).NextEligibleRunUtc, Is.EqualTo(job.NextEligibleRunUtc));
+    }
+
+    [Test]
+    public void An_uncertain_compilation_artist_or_album_artist_does_not_disable_retry()
+    {
+        var (_, entries) = Create(1);
+        var entry = entries[0];
+        entry.Track.Artist = "Various Artists";
+        // Diagnostic text from an uncertain request is not proof of rejection.
+        entry.Message = "Last.fm ignored code 1.";
+        var vm = new ImportReviewEntryViewModel(new(entry, HistoryMatch.Missing, []), _clock.GetUtcNow());
+        Assert.That(vm.Choices.Any(c => c.Action == ReviewAction.Retry), Is.True);
+        entry.Status = EntryStatus.NeedsAttention;
+        entry.Message = "Other rejection.";
+        entry.Track.Artist = "Real Artist";
+        entry.Track.AlbumArtist = "Various Artists";
+        vm = new(new(entry, HistoryMatch.Missing, []), _clock.GetUtcNow());
+        Assert.That(vm.Choices.Any(c => c.Action == ReviewAction.Retry), Is.True);
+    }
+
+    [Test]
+    public void A_possible_history_match_remains_visible_after_a_metadata_rejection()
+    {
+        var (_, entries) = Create(1, EntryStatus.NeedsAttention);
+        entries[0].LastFmIgnoredCode = 1;
+        var candidate = Play(entries[0], artist: "Corrected artist");
+        var vm = new ImportReviewEntryViewModel(new(entries[0], HistoryMatch.Ambiguous, [candidate]), _clock.GetUtcNow());
+        Assert.That(vm.MatchDescription, Does.StartWith("Possible match"));
+        Assert.That(vm.Candidates, Does.Contain("Corrected artist"));
+        Assert.That(vm.Choices.Any(c => c.Action == ReviewAction.Retry), Is.False);
+    }
+
     [TestCase(ReviewAction.KeepUnresolved)]
     [TestCase(ReviewAction.MarkImported)]
     [TestCase(ReviewAction.Skip)]

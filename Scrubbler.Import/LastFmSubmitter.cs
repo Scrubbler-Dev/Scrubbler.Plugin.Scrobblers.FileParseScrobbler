@@ -146,7 +146,7 @@ public sealed class LastFmSubmitter(HttpClient http, Func<LastFmCredentials> cre
             var code = (int?)ignored?.Attribute("code");
             var outcome = code switch { 0 => SubmissionOutcome.Accepted, 5 => SubmissionOutcome.DailyLimit,
                 1 or 2 or 3 or 4 => SubmissionOutcome.Rejected, _ => SubmissionOutcome.Uncertain };
-            results.Add(new(outcome, code == 0 ? null : $"Last.fm ignored code {code}."));
+            results.Add(new(outcome, LastFmScrobbleFeedback.DescribeIgnoredCode(code), code));
         }
         return results;
     }
